@@ -1,0 +1,38 @@
+c 1 KeylessEntry
+c 2 Electric
+c 3 Gas
+c 4 Manual
+c 5 Body
+c 6 Engine
+c 7 Gear
+c 8 DummyBenchmark
+c 9 Automatic
+c 10 PowerLocks
+c attr cost 1 10
+c attr cost 2 20
+c attr cost 3 30
+c attr cost 4 25
+c attr cost 5 0
+c attr cost 6 0
+c attr cost 7 0
+c attr cost 8 0
+c attr cost 9 50
+c attr cost 10 10
+p cnf 10 17
+8 0
+6 -2 0
+6 -3 0
+2 3 -6 0
+7 -4 0
+7 -9 0
+4 9 -7 0
+-4 -9 0
+8 -5 0
+8 -6 0
+8 -7 0
+8 -1 0
+8 -10 0
+5 -8 0
+6 -8 0
+7 -8 0
+-1 10 0
