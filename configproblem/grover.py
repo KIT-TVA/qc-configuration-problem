@@ -9,10 +9,11 @@ import numpy as np
 import math
 
 # importing Qiskit
-from qiskit import IBMQ, Aer, transpile, execute
+from qiskit import IBMQ, Aer, BasicAer, transpile, execute
 from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister
 from qiskit.providers.ibmq import least_busy
 from qiskit.quantum_info.operators import Operator
+import qiskit.compiler as qispiler
 
 # import basic plot tools
 from qiskit.visualization import plot_histogram
@@ -38,6 +39,7 @@ oracle_matrix = [[1, 0, 0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0, 0, -1]]
 
 def create_oracle(nqubits, solutions):
+    """ Create an identity matrix of size nqubits and flip phase of solutions"""
     I = Operator([[1,0],[0,1]])
     unitary = I
     for i in range(nqubits-1):
@@ -48,6 +50,19 @@ def create_oracle(nqubits, solutions):
         for i in range(nqubits):
             index += (2**i)*s[nqubits-i-1]
         unitary.data[index][index] = -1
+
+    ## BEGIN TRANSPILATION
+    unitary.name = "U$_{oracle}$"
+    temporary_qc = QuantumCircuit(nqubits)
+    temporary_qc.unitary(unitary, range(nqubits), label="oracle")
+    gate_set_nairobi = ['h', 'cx', 'id', 'rz', 'sx', 'x'] # plus hadamard
+    gate_set_default = ['h', 'u1', 'u2', 'u3', 'cx']
+    backend = Aer.get_backend('aer_simulator_stabilizer')
+    qcd = qispiler.transpile(temporary_qc, basis_gates=gate_set_default, optimization_level=3)
+    # qcd = qispiler.transpile(temporary_qc, backend=backend, optimization_level=3)
+    qcd.draw(output="mpl")
+    ## END TRANSPILATION
+
     return unitary 
 
 solutions = [[1,0,0,1,1,0,0,1],[1,0,0,1,1,1,0,1]]
@@ -63,9 +78,6 @@ print(f"Number of iterations: {k}")
 
 #oracle_operator = Operator(oracle_matrix)
 qc.unitary(create_oracle(nqubits,solutions), range(nqubits), label="oracle")
-oracle_ex3 = qc.to_gate()
-oracle_ex3.name = "U$_\omega$"
-
 
 def diffuser(nqubits):
     qc = QuantumCircuit(nqubits)
@@ -87,7 +99,7 @@ def diffuser(nqubits):
         qc.h(qubit)
     # We will return the diffuser as a gate
     U_s = qc.to_gate()
-    U_s.name = "U$_s$"
+    U_s.name = "U$_{Diffuser}$"
     return U_s
 
 grover_circuit = QuantumCircuit(nqubits)
