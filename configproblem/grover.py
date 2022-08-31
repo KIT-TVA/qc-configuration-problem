@@ -78,6 +78,8 @@ print(f"Number of iterations: {k}")
 
 #oracle_operator = Operator(oracle_matrix)
 qc.unitary(create_oracle(nqubits,solutions), range(nqubits), label="oracle")
+oracle_ex3 = qc.to_gate()
+oracle_ex3.name = "U$_\omega$"
 
 def diffuser(nqubits):
     qc = QuantumCircuit(nqubits)
