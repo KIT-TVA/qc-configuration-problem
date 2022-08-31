@@ -24,7 +24,8 @@ def initialize_s(qc, qubits):
     return qc
 
 # Oracle
-qc = QuantumCircuit(3)
+nqubits = 8
+qc = QuantumCircuit(nqubits)
 # qc.cz(0, 2)
 #qc.cz(1, 2)
 oracle_matrix = [[1, 0, 0, 0, 0, 0, 0, 0],
@@ -36,8 +37,32 @@ oracle_matrix = [[1, 0, 0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0, 1, 0],
                  [0, 0, 0, 0, 0, 0, 0, -1]]
 
-oracle_operator = Operator(oracle_matrix)
-qc.unitary(oracle_operator, range(3), label="oracle")
+def create_oracle(nqubits, solutions):
+    I = Operator([[1,0],[0,1]])
+    unitary = I
+    for i in range(nqubits-1):
+        unitary = unitary.tensor(I)
+    
+    for s in solutions:
+        index = 0
+        for i in range(nqubits):
+            index += (2**i)*s[nqubits-i-1]
+        unitary.data[index][index] = -1
+    return unitary 
+
+solutions = [[1,0,0,1,1,0,0,1],[1,0,0,1,1,1,0,1]]
+#k = math.floor((math.pi/4)*math.sqrt(2**nqubits))
+#k = round(math.sqrt(float((2**nqubits)/len(solutions))))
+N = 2**nqubits
+M = len(solutions)
+theta = math.asin(2*math.sqrt(M*(N-M))/N)
+k = round(math.acos(math.sqrt(M/N))/theta)
+
+
+print(f"Number of iterations: {k}")
+
+#oracle_operator = Operator(oracle_matrix)
+qc.unitary(create_oracle(nqubits,solutions), range(nqubits), label="oracle")
 oracle_ex3 = qc.to_gate()
 oracle_ex3.name = "U$_\omega$"
 
@@ -65,15 +90,13 @@ def diffuser(nqubits):
     U_s.name = "U$_s$"
     return U_s
 
-n = 3
-grover_circuit = QuantumCircuit(n)
-grover_circuit = initialize_s(grover_circuit, [0,1,2])
-grover_circuit.append(oracle_ex3, [0,1,2])
-grover_circuit.append(diffuser(n), [0,1,2])
-grover_circuit.append(oracle_ex3, [0,1,2])
-grover_circuit.append(diffuser(n), [0,1,2])
-grover_circuit.append(oracle_ex3, [0,1,2])
-grover_circuit.append(diffuser(n), [0,1,2])
+grover_circuit = QuantumCircuit(nqubits)
+grover_circuit = initialize_s(grover_circuit, range(nqubits))
+
+for i in range(k):
+    grover_circuit.append(oracle_ex3, range(nqubits))
+    grover_circuit.append(diffuser(nqubits), range(nqubits))
+
 grover_circuit.measure_all()
 grover_circuit.draw(output="mpl")
 

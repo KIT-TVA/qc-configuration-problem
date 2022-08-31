@@ -6,9 +6,19 @@ from qiskit.algorithms import Grover, AmplificationProblem
 from qiskit.circuit.library import PhaseOracle
 import matplotlib.pyplot as plt
 
-oracle = PhaseOracle.from_dimacs_file('../benchmarks/test.dimacs')
-#oracle.draw(output='mpl')
-#plt.show()
+test = """(Electric | Gas)  & (Manual | Automatic) & (~Manual | ~Automatic) & (~KeylessEntry | PowerLocks)
+"""
+# 0: Electric
+# 1: Gas
+# 2: Manual
+# 3: Automatic
+# 4: Keyless
+# 5: Powerlocks
+# Sol = 111011, 110111, 011011, 100101, 111000
+oracle = PhaseOracle(test)
+#oracle = LogicalExpressionOracle(sat_cnf)
+oracle.draw(output='mpl')
+plt.show()
 
 class Verifier():
     """Create an object that can be used to check whether
@@ -50,7 +60,7 @@ class Verifier():
                 return False
         return True
 
-v = Verifier('test.dimacs')   
+v = Verifier('benchmarks/test.dimacs')   
 v.is_correct('001')
 
 backend = Aer.get_backend('aer_simulator')
@@ -65,4 +75,5 @@ grover = Grover(quantum_instance=quantum_instance)
 result = grover.amplify(problem)
 result.top_measurement
 
-plot_histogram(result.circuit_results)
+histogram = plot_histogram(result.circuit_results)
+plt.show()
