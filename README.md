@@ -20,4 +20,5 @@ pip install -r requirements.txt
 - [ ] Import feature models with attributes (DIMACS?)
 - [ ] Use Grover-Algorithm to find the optimal configuration (i.e., construct phase oracle)
 - [ ] Use Quantum-Tree-Walk (and BDDs) as alternative
+- [ ] Clean requirements.txt
 - [ ] ...
