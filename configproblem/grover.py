@@ -24,63 +24,6 @@ def initialize_s(qc, qubits):
         qc.h(q)
     return qc
 
-# Oracle
-nqubits = 8
-qc = QuantumCircuit(nqubits)
-# qc.cz(0, 2)
-#qc.cz(1, 2)
-oracle_matrix = [[1, 0, 0, 0, 0, 0, 0, 0],
-                 [0, 1, 0, 0, 0, 0, 0, 0],
-                 [0, 0, 1, 0, 0, 0, 0, 0],
-                 [0, 0, 0, 1, 0, 0, 0, 0],
-                 [0, 0, 0, 0, 1, 0, 0, 0],
-                 [0, 0, 0, 0, 0, 1, 0, 0],
-                 [0, 0, 0, 0, 0, 0, 1, 0],
-                 [0, 0, 0, 0, 0, 0, 0, -1]]
-
-def create_oracle(nqubits, solutions):
-    """ Create an identity matrix of size nqubits and flip phase of solutions"""
-    I = Operator([[1,0],[0,1]])
-    unitary = I
-    for i in range(nqubits-1):
-        unitary = unitary.tensor(I)
-    
-    for s in solutions:
-        index = 0
-        for i in range(nqubits):
-            index += (2**i)*s[nqubits-i-1]
-        unitary.data[index][index] = -1
-
-    ## BEGIN TRANSPILATION
-    unitary.name = "U$_{oracle}$"
-    temporary_qc = QuantumCircuit(nqubits)
-    temporary_qc.unitary(unitary, range(nqubits), label="oracle")
-    gate_set_nairobi = ['h', 'cx', 'id', 'rz', 'sx', 'x'] # plus hadamard
-    gate_set_default = ['h', 'u1', 'u2', 'u3', 'cx']
-    backend = Aer.get_backend('aer_simulator_stabilizer')
-    qcd = qispiler.transpile(temporary_qc, basis_gates=gate_set_default, optimization_level=3)
-    # qcd = qispiler.transpile(temporary_qc, backend=backend, optimization_level=3)
-    qcd.draw(output="mpl")
-    ## END TRANSPILATION
-
-    return unitary 
-
-solutions = [[1,0,0,1,1,0,0,1],[1,0,0,1,1,1,0,1]]
-#k = math.floor((math.pi/4)*math.sqrt(2**nqubits))
-#k = round(math.sqrt(float((2**nqubits)/len(solutions))))
-N = 2**nqubits
-M = len(solutions)
-theta = math.asin(2*math.sqrt(M*(N-M))/N)
-k = round(math.acos(math.sqrt(M/N))/theta)
-
-
-print(f"Number of iterations: {k}")
-
-#oracle_operator = Operator(oracle_matrix)
-qc.unitary(create_oracle(nqubits,solutions), range(nqubits), label="oracle")
-oracle_ex3 = qc.to_gate()
-oracle_ex3.name = "U$_\omega$"
-
 def diffuser(nqubits):
     qc = QuantumCircuit(nqubits)
     # Apply transformation |s> -> |00..0> (H-gates)
@@ -104,21 +47,82 @@ def diffuser(nqubits):
     U_s.name = "U$_{Diffuser}$"
     return U_s
 
-grover_circuit = QuantumCircuit(nqubits)
-grover_circuit = initialize_s(grover_circuit, range(nqubits))
+def main():
+    # Oracle
+    nqubits = 8
+    qc = QuantumCircuit(nqubits)
+    # qc.cz(0, 2)
+    #qc.cz(1, 2)
+    oracle_matrix = [[1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0, -1]]
 
-for i in range(k):
-    grover_circuit.append(oracle_ex3, range(nqubits))
-    grover_circuit.append(diffuser(nqubits), range(nqubits))
+    def create_oracle(nqubits, solutions):
+        """ Create an identity matrix of size nqubits and flip phase of solutions"""
+        I = Operator([[1,0],[0,1]])
+        unitary = I
+        for i in range(nqubits-1):
+            unitary = unitary.tensor(I)
+        
+        for s in solutions:
+            index = 0
+            for i in range(nqubits):
+                index += (2**i)*s[nqubits-i-1]
+            unitary.data[index][index] = -1
 
-grover_circuit.measure_all()
-grover_circuit.draw(output="mpl")
+        ## BEGIN TRANSPILATION
+        unitary.name = "U$_{oracle}$"
+        temporary_qc = QuantumCircuit(nqubits)
+        temporary_qc.unitary(unitary, range(nqubits), label="oracle")
+        gate_set_nairobi = ['h', 'cx', 'id', 'rz', 'sx', 'x'] # plus hadamard
+        gate_set_default = ['h', 'u1', 'u2', 'u3', 'cx']
+        backend = Aer.get_backend('aer_simulator_stabilizer')
+        qcd = qispiler.transpile(temporary_qc, basis_gates=gate_set_default, optimization_level=3)
+        # qcd = qispiler.transpile(temporary_qc, backend=backend, optimization_level=3)
+        qcd.draw(output="mpl")
+        ## END TRANSPILATION
 
-#plt.show()
+        return unitary 
 
-qasm_sim = Aer.get_backend('qasm_simulator')
-transpiled_grover_circuit = transpile(grover_circuit, qasm_sim)
-results = qasm_sim.run(transpiled_grover_circuit).result()
-counts = results.get_counts()
-histogram = plot_histogram(counts)
-plt.show()
+    solutions = [[1,0,0,1,1,0,0,1],[1,0,0,1,1,1,0,1]]
+    #k = math.floor((math.pi/4)*math.sqrt(2**nqubits))
+    #k = round(math.sqrt(float((2**nqubits)/len(solutions))))
+    N = 2**nqubits
+    M = len(solutions)
+    theta = math.asin(2*math.sqrt(M*(N-M))/N)
+    k = round(math.acos(math.sqrt(M/N))/theta)
+
+
+    print(f"Number of iterations: {k}")
+
+    #oracle_operator = Operator(oracle_matrix)
+    qc.unitary(create_oracle(nqubits,solutions), range(nqubits), label="oracle")
+    oracle_ex3 = qc.to_gate()
+    oracle_ex3.name = "U$_\omega$"
+
+    grover_circuit = QuantumCircuit(nqubits)
+    grover_circuit = initialize_s(grover_circuit, range(nqubits))
+
+    for i in range(k):
+        grover_circuit.append(oracle_ex3, range(nqubits))
+        grover_circuit.append(diffuser(nqubits), range(nqubits))
+
+    grover_circuit.measure_all()
+    grover_circuit.draw(output="mpl")
+
+    #plt.show()
+
+    qasm_sim = Aer.get_backend('qasm_simulator')
+    transpiled_grover_circuit = transpile(grover_circuit, qasm_sim)
+    results = qasm_sim.run(transpiled_grover_circuit).result()
+    counts = results.get_counts()
+    histogram = plot_histogram(counts)
+    plt.show()
+
+if __name__ == '__main__':
+    main()

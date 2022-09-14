@@ -1,6 +1,6 @@
 # QISKIT USES LITTLE ENDIAN NOTATION!
 
-from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, QuantumCircuit
+from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, ClassicalRegister, QuantumCircuit
 from qiskit.quantum_info import Operator
 
 from typing import Dict, List, Tuple
@@ -101,10 +101,23 @@ def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[
     and_oracle = create_and_oracle(ancilla_reg, tar)
     qc.append(and_oracle, ancilla_reg[:]+tar_reg[:])
 
-    # inverse clause oracles
+    # Inverse clause oracles
     qc = qc.compose(inverse_qc)
 
     return qc.to_gate(label="$U_{ksat}$")
+
+def oracle_converter(oracle_qc, target_idx):
+    phase_qc = oracle_qc.copy()
+
+    qc_conv = QuantumCircuit(1, name="phase")
+    qc_conv.x(0)
+    qc_conv.h(0)
+    # Prepend the phase transformation
+    phase_qc = phase_qc.compose(qc_conv, qubits=[target_idx], front=True)
+    # Append the phase transformation 
+    phase_qc = phase_qc.compose(qc_conv.inverse(), qubits=[target_idx])
+
+    return phase_qc
 
 import unittest
 from numpy.testing import assert_array_equal
@@ -290,6 +303,69 @@ class TestSATOracle(unittest.TestCase):
         self.assert_operation_statevecs(
             clause_oracle_expected_statevec_mapping2, ksat_op, inp_reg3, tar_reg, ancilla_reg2)
 
+    def test_grover(self):
+        problem = [[(2, True)], [(0, True),(1, False)]]
+
+        # TODO register sizes could be calculated from problem -> extract function
+        inp_reg3 = QuantumRegister(3)
+        tar = Qubit()
+        tar_reg = QuantumRegister(bits=[tar])
+        ancilla_reg2 = AncillaRegister(2)
+
+        problem = [[(2, True)], [(0, True),(1, False)]]
+        qc_oracle = QuantumCircuit(6)
+        qc_oracle.append(create_ksat_oracle(inp_reg3, tar, problem), qc_oracle.qubits)
+        phase_qc = oracle_converter(qc_oracle, len(inp_reg3))
+
+        num_var = phase_qc.num_qubits-phase_qc.num_ancillas
+        from grover import diffuser
+        diff = diffuser(num_var-1)
+
+        # Construct main quantum circuit
+        main_qc = phase_qc.copy_empty_like()
+        creg = ClassicalRegister(num_var, name="c")
+        main_qc.add_register(creg)
+
+        # Create uniform superposition
+        from grover import initialize_s
+        main_qc = initialize_s(main_qc, range(num_var-1))
+
+        # Grover loop
+        # TODO find k
+        k=1
+
+        # Add the oracle-diffusor step k times
+        for i in range(k):
+            main_qc.append(phase_qc.to_gate(), range(main_qc.num_qubits))
+            register_map = list(range(num_var-1))
+            main_qc = main_qc.compose(diff, register_map)
+    
+        # Measure Inputs and Target
+        for i, c in enumerate(creg):
+            if i < len(creg)-1:
+                main_qc.measure(i, c) # measure inputs
+
+        # Reapply Marking Oracle for correctness check
+        qreg_out = QuantumRegister(size=1, name="q_out")
+        main_qc.add_register(qreg_out)
+        marking_out_map = list(range(num_var+main_qc.num_ancillas-1))
+        marking_out_map.append(-1)
+        main_qc = main_qc.compose(qc_oracle, marking_out_map)
+        main_qc.measure(-1, -1) # measure q_out into last classical register
+
+        print('\n')
+        print(main_qc.draw(output='text'))
+
+        from qiskit import Aer, transpile
+        from qiskit.visualization import plot_histogram
+
+        qasm_sim = Aer.get_backend('qasm_simulator')
+        transpiled_grover_circuit = transpile(main_qc, qasm_sim)
+        results = qasm_sim.run(transpiled_grover_circuit).result()
+        counts = results.get_counts()
+        histogram = plot_histogram(counts)
+        import matplotlib.pyplot as plt
+        plt.show()
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
