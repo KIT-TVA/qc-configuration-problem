@@ -1,8 +1,9 @@
 # QISKIT USES LITTLE ENDIAN NOTATION!
 
-from unittest import result
-from qiskit.circuit import Qubit, QuantumRegister, QuantumCircuit
+from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, QuantumCircuit
 from qiskit.quantum_info import Operator
+
+from typing import Dict, List, Tuple
 
 def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit):
     """
@@ -14,7 +15,7 @@ def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit):
 
     qc.mcx(inp_reg, tar_reg)
 
-    return qc.to_gate(label="$U_{AND}$")
+    return qc.to_gate(label="$U_{and}$")
 
 def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit):
     """
@@ -40,7 +41,70 @@ def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit):
     # Flip target
     qc.x(tar_reg[0])
     
-    return qc.to_gate(label="$U_{OR}$")
+    return qc.to_gate(label="$U_{or}$")
+
+def get_clause_qubits(inp_reg: QuantumRegister, clause: List[Tuple[int, bool]]) -> QuantumRegister:
+    """
+        Return a register containing only relevant qubits for a SAT clause
+    """
+
+    clause_qubits:list(Qubit) = []
+
+    for index, _ in clause:
+        clause_qubits.append(inp_reg[index])
+
+    return clause_qubits
+
+def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tuple[int, bool]]):
+    """
+        Create an oracle for a SAT clause
+    """
+    tar_reg = QuantumRegister(bits=[tar])
+    qc = QuantumCircuit(inp_reg, tar_reg)
+
+    # Flip all qubits which are negated in the clause
+    for index, positive in clause:
+        if not positive:
+            qc.x(index)
+    
+    
+    # Get Clause Qubits
+    clause_qubits = get_clause_qubits(inp_reg, clause)
+    clause_reg = QuantumRegister(bits=clause_qubits)
+
+    # Create an OR oracle for clause
+    clause_oracle = create_or_oracle(clause_reg, tar)
+    qc.append(clause_oracle, clause_reg[:]+tar_reg[:])
+
+    # Inverse the initial flips
+    for index, positive in clause:
+        if not positive:
+            qc.x(index)
+
+    return qc.to_gate(label="$U_{clause}$")
+
+def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]):
+    ancilla_reg = AncillaRegister(len(clauses))
+    tar_reg = QuantumRegister(bits=[tar])
+    qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg)
+
+    # Compose individual clauses
+    for index, clause in enumerate(clauses):
+        # Use one ancilla for each clause
+        clause_oracle = create_clause_oracle(inp_reg, ancilla_reg[index], clause)
+        qc.append(clause_oracle, inp_reg[:]+[ancilla_reg[index]])
+    
+    # Store the conjugate transpose (inverse) for later qubit cleanup
+    inverse_qc = qc.inverse()
+    
+    # Use and oracle onto ancilla register and target
+    and_oracle = create_and_oracle(ancilla_reg, tar)
+    qc.append(and_oracle, ancilla_reg[:]+tar_reg[:])
+
+    # inverse clause oracles
+    qc = qc.compose(inverse_qc)
+
+    return qc.to_gate(label="$U_{ksat}$")
 
 import unittest
 from numpy.testing import assert_array_equal
@@ -55,16 +119,21 @@ class TestSATOracle(unittest.TestCase):
 
     test_backend = StatevectorSimulator()
 
-    def assert_operation_statevecs(self, mapping, op, inp_reg, tar_reg):
+    def assert_operation_statevecs(self, mapping, op, inp_reg, tar_reg, ancilla_reg=None):
         """
             For a given operator (op) check that the defined state vector mapping holds
         """
         for input, expected in mapping.items():
             input_vec = Statevector.from_label(input)
 
-            qc = QuantumCircuit(inp_reg, tar_reg)
-            qc.initialize(input_vec, qc.qubits)
-            qc.append(op, inp_reg[:]+tar_reg[:])
+            if(ancilla_reg is None):
+                qc = QuantumCircuit(inp_reg, tar_reg)
+                qc.initialize(input_vec, qc.qubits)
+                qc.append(op, inp_reg[:]+tar_reg[:])
+            else: 
+                qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg)
+                qc.initialize(input_vec, qc.qubits)
+                qc.append(op, inp_reg[:]+tar_reg[:]+ancilla_reg[:])
             # print(qc.draw(output='text'))
 
             transpiled_qc = transpile(qc, self.test_backend)
@@ -132,6 +201,94 @@ class TestSATOracle(unittest.TestCase):
 
         self.assert_operation_statevecs(
             or_oracle_expected_statevec_mapping, or_op2, inp_reg2, tar_reg)
+
+    def test_clause_oracle(self):
+        inp_reg2 = QuantumRegister(2)
+        inp_reg3 = QuantumRegister(3)
+        tar = Qubit()
+        tar_reg = QuantumRegister(bits=[tar])
+
+        clause = [(0, True),(1, False)]
+        clause_op2 = Operator(create_clause_oracle(inp_reg2, tar, clause))
+
+        # Test for 3 qubits or oracle that it behaves as expected
+        # So for each input basis state check that the expected output basis state is computed
+        clause_oracle_expected_statevec_mapping1 = {
+            # Little endian: t, c2, c1
+            # Flip t if c1 or not(c2)
+            '000': '100',
+            '001': '101',
+            '010': '010',
+            '011': '111',
+            '100': '000',
+            '101': '001',
+            '110': '110',
+            '111': '011',
+        }
+
+        self.assert_operation_statevecs(
+            clause_oracle_expected_statevec_mapping1, clause_op2, inp_reg2, tar_reg)
+
+        clause = [(0, True),(1, False),(2,False)]
+        clause_op3 = Operator(create_clause_oracle(inp_reg3, tar, clause))
+        # Also test for a more complex clause
+        clause_oracle_expected_statevec_mapping2 = {
+            # Little endian: t, c3, c2, c1
+            # flip t if c1 or not(c2) or not(c3)
+            '0000': '1000',
+            '0001': '1001',
+            '0010': '1010',
+            '0011': '1011',
+            '0100': '1100',
+            '0101': '1101',
+            '0110': '0110',
+            '0111': '1111',
+            '1000': '0000',
+            '1001': '0001',
+            '1010': '0010',
+            '1011': '0011',
+            '1100': '0100',
+            '1101': '0101',
+            '1110': '1110',
+            '1111': '0111',
+        }
+
+        self.assert_operation_statevecs(
+            clause_oracle_expected_statevec_mapping2, clause_op3, inp_reg3, tar_reg)
+
+    def test_ksat_oracle(self):
+        inp_reg3 = QuantumRegister(3)
+        tar = Qubit()
+        tar_reg = QuantumRegister(bits=[tar])
+        ancilla_reg2 = AncillaRegister(2)
+
+        problem = [[(2, True)], [(0, True),(1, False)]]
+        ksat_op = Operator(create_ksat_oracle(inp_reg3, tar, problem))
+
+        clause_oracle_expected_statevec_mapping2 = {
+            # Little endian: a2, a1 t, c3, c2, c1
+            # We ignore the ancillas so just set them to 0
+            # Flip t if (c3) and (c1 or not(c2))
+            '000000': '000000',
+            '000001': '000001',
+            '000010': '000010',
+            '000011': '000011',
+            '000100': '001100', # Flip
+            '000101': '001101', # Flip
+            '000110': '000110',
+            '000111': '001111', # Flip
+            '001000': '001000',
+            '001001': '001001',
+            '001010': '001010',
+            '001011': '001011',
+            '001100': '000100', # Flip
+            '001101': '000101', # Flip
+            '001110': '001110',
+            '001111': '000111', # Flip
+        }
+
+        self.assert_operation_statevecs(
+            clause_oracle_expected_statevec_mapping2, ksat_op, inp_reg3, tar_reg, ancilla_reg2)
 
 
 if __name__ == '__main__':
