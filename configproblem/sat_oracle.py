@@ -123,9 +123,9 @@ def oracle_converter(oracle_qc: QuantumCircuit, target_idx: int) -> QuantumCircu
 
     return phase_qc
 
-def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> QuantumCircuit:
+def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit]:
     """
-        Creates an oracle for the SAT problem instance and applies Grover k times
+        Creates an circuit for the SAT problem instance and applies Grover k times
     """
     # Number of input qubits
     num_vars = len(set([statement[0] for clause in problem for statement in clause]))
@@ -161,19 +161,35 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> QuantumCircu
     for i in range(k):
         main_qc.append(phase_oracle_gate, range(num_qubits))
         main_qc = main_qc.compose(diff, register_map)
-
-    # Reapply Marking Oracle for correctness check
-    # TODO do we really need a new qubit for this?
-    qreg_out = QuantumRegister(size=1, name="q_out")
-    main_qc.add_register(qreg_out)
-    # Oracle over vars and ancillas but on clean output qubit
-    # TODO in the example they do this AFTER measuring,
-    # but we omit measuring here because we can test the circuit more easily then
-    marking_out_map = list(range(num_vars))
-    marking_out_map.extend(list(range(num_vars+1, num_vars+1+num_clauses+1)))
-    main_qc = main_qc.compose(qc_oracle, marking_out_map)
     
-    return main_qc
+    return (main_qc, qc_oracle)
+
+def create_ksat_grover_unknown_k(problem: List[List[Tuple[int, bool]]]) -> QuantumCircuit:
+    """
+        Creates kSAT Grover circuit for unknown k
+    """
+    
+    # TODO
+    # One strategy would be to run grover range(n) times with k=2^n
+    # until oracle measurement at the end finds a valid configuration
+    pass
+
+def create_ksat_grover_from_dimacs(dmacs: str)  -> QuantumCircuit:
+    """
+        Creates kSAT Grover circuit for unknown k from DIMACS string 
+    """
+
+    # TODO
+    pass
+
+def benchmark_ksat_grover(tbd):
+    """
+        Benchmarks ksat grover for different problem instances
+        Returns estimated runtime, circuit size, ...
+    """
+
+    # TODO
+    pass
 
 import unittest
 from numpy.testing import assert_array_equal
@@ -233,7 +249,7 @@ class TestSATOracle(unittest.TestCase):
         # Now test for CCX (as at least 3 qubits are required) / and oracle that it behaves as expected
         # So for each input basis state check that the expected output basis state is computed
         and_oracle_expected_statevec_mapping = {
-            # Little endian: t, c2, c1
+            # Little endian: t, in2, in1
             '000': '000',
             '001': '001',
             '010': '010',
@@ -257,7 +273,7 @@ class TestSATOracle(unittest.TestCase):
         # Test for 3 qubits or oracle that it behaves as expected
         # So for each input basis state check that the expected output basis state is computed
         or_oracle_expected_statevec_mapping = {
-            # Little endian: t, c2, c1
+            # Little endian: t, in2, in1
             '000': '000',
             '001': '101', # If at least one control is true, flip target
             '010': '110', # If at least one control is true, flip target
@@ -283,8 +299,8 @@ class TestSATOracle(unittest.TestCase):
         # Test for 3 qubits or oracle that it behaves as expected
         # So for each input basis state check that the expected output basis state is computed
         clause_oracle_expected_statevec_mapping1 = {
-            # Little endian: t, c2, c1
-            # Flip t if c1 or not(c2)
+            # Little endian: t, in2, in1
+            # Flip t if in1 or not(in2)
             '000': '100',
             '001': '101',
             '010': '010',
@@ -302,8 +318,8 @@ class TestSATOracle(unittest.TestCase):
         clause_op3 = Operator(create_clause_oracle(inp_reg3, tar, clause))
         # Also test for a more complex clause
         clause_oracle_expected_statevec_mapping2 = {
-            # Little endian: t, c3, c2, c1
-            # Flip t if c1 or not(c2) or not(c3)
+            # Little endian: t, in3, in2, in1
+            # Flip t if in1 or not(in2) or not(in3)
             '0000': '1000',
             '0001': '1001',
             '0010': '1010',
@@ -335,9 +351,9 @@ class TestSATOracle(unittest.TestCase):
         ksat_op = Operator(create_ksat_oracle(inp_reg3, tar, problem))
 
         clause_oracle_expected_statevec_mapping2 = {
-            # Little endian: a2, a1, t, c3, c2, c1
+            # Little endian: a2, a1, t, in3, in2, in1
             # We ignore the ancillas so just set them to 0
-            # Flip t if (c3) and (c1 or not(c2))
+            # Flip t if (in3) and (in1 or not(in2))
             '000000': '000000',
             '000001': '000001',
             '000010': '000010',
@@ -362,7 +378,21 @@ class TestSATOracle(unittest.TestCase):
     def test_ksat_grover(self):
         problem = [[(2, True)], [(0, True),(1, False)]]
 
-        qc = create_ksat_grover(problem, 1)
+        qc, qc_oracle = create_ksat_grover(problem, 1)
+
+        # Reapply Marking Oracle for correctness check
+        num_vars = len(set([statement[0] for clause in problem for statement in clause]))
+        num_clauses = len(problem)
+
+        # TODO do we really need a new qubit for this?
+        qreg_out = QuantumRegister(size=1, name="q_out")
+        qc.add_register(qreg_out)
+        # Oracle over vars and ancillas but on clean output qubit
+        # TODO in the example they do this AFTER measuring,
+        # but we omit measuring here because we can test the circuit more easily then
+        marking_out_map = list(range(num_vars))
+        marking_out_map.extend(list(range(num_vars+1, num_vars+1+num_clauses+1)))
+        qc = qc.compose(qc_oracle, marking_out_map)
 
         # Simulate
         transpiled_qc = transpile(qc, self.test_backend)
@@ -370,9 +400,9 @@ class TestSATOracle(unittest.TestCase):
         counts = results.get_counts()
 
         expectedCounts = {
-            # Little endian: a2, a1, out, tar, c3, c2, c1
+            # Little endian: a2, a1, out, tar, in3, in2, in1
             # We ignore the ancillas so just set them to 0
-            # Amplify state of solutions to problem: if (c3) and (c1 or not(c2)) -> '100', '101' and '111'
+            # Amplify state of solutions to problem: if (in3) and (in1 or not(in2)) -> '100', '101' and '111'
             '0000000': 0.03125, 
             '0000001': 0.03125, 
             '0000010': 0.03125, 
