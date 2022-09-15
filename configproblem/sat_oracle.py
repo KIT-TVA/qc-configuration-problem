@@ -1,11 +1,9 @@
-# QISKIT USES LITTLE ENDIAN NOTATION!
-
-from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, ClassicalRegister, QuantumCircuit
+from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, QuantumCircuit, Gate
 from qiskit.quantum_info import Operator
 
 from typing import Dict, List, Tuple
 
-def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit):
+def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> Gate:
     """
         Constructs an oracle for boolean AND,
         that is a multi-controlled X gate
@@ -17,7 +15,7 @@ def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit):
 
     return qc.to_gate(label="$U_{and}$")
 
-def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit):
+def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit) -> Gate:
     """
         Constructs an oracle for boolean OR,
         from NOT (X) and AND oracles
@@ -43,7 +41,7 @@ def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit):
     
     return qc.to_gate(label="$U_{or}$")
 
-def get_clause_qubits(inp_reg: QuantumRegister, clause: List[Tuple[int, bool]]) -> QuantumRegister:
+def get_clause_qubits(inp_reg: QuantumRegister, clause: List[Tuple[int, bool]]) -> List[Qubit]:
     """
         Return a register containing only relevant qubits for a SAT clause
     """
@@ -55,7 +53,7 @@ def get_clause_qubits(inp_reg: QuantumRegister, clause: List[Tuple[int, bool]]) 
 
     return clause_qubits
 
-def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tuple[int, bool]]):
+def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tuple[int, bool]]) -> Gate:
     """
         Create an oracle for a SAT clause
     """
@@ -83,7 +81,10 @@ def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tupl
 
     return qc.to_gate(label="$U_{clause}$")
 
-def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]):
+def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]) -> Gate:
+    """
+        Create an Oracle for a kSAT problem
+    """
     ancilla_reg = AncillaRegister(len(clauses))
     tar_reg = QuantumRegister(bits=[tar])
     qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg)
@@ -106,10 +107,13 @@ def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[
 
     return qc.to_gate(label="$U_{ksat}$")
 
-def oracle_converter(oracle_qc, target_idx):
+def oracle_converter(oracle_qc: QuantumCircuit, target_idx: int) -> QuantumCircuit:
+    """
+        Convert a bit-flip into a phase oracle
+    """
     phase_qc = oracle_qc.copy()
 
-    qc_conv = QuantumCircuit(1, name="phase")
+    qc_conv = QuantumCircuit(1, name="$U_{phase}$")
     qc_conv.x(0)
     qc_conv.h(0)
     # Prepend the phase transformation
@@ -118,6 +122,58 @@ def oracle_converter(oracle_qc, target_idx):
     phase_qc = phase_qc.compose(qc_conv.inverse(), qubits=[target_idx])
 
     return phase_qc
+
+def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> QuantumCircuit:
+    """
+        Creates an oracle for the SAT problem instance and applies Grover k times
+    """
+    # Number of input qubits
+    num_vars = len(set([statement[0] for clause in problem for statement in clause]))
+    # Number of ancialla qubits
+    num_clauses = len(problem)
+    num_qubits = num_vars + num_clauses + 1
+
+    # Init registers and qubits
+    inp_reg = QuantumRegister(num_vars, name="q_in")
+    tar = Qubit()
+    tar_reg = QuantumRegister(bits=[tar], name="q_tar")
+    ancilla_reg = AncillaRegister(num_clauses, name="a")
+
+    # Create oracle for this SAT problem instance
+    qc_oracle = QuantumCircuit(num_qubits)
+    qc_oracle.append(create_ksat_oracle(inp_reg, tar, problem), qc_oracle.qubits)
+    qc_phase_oracle = oracle_converter(qc_oracle, len(inp_reg))
+
+    # Add grover diffuser
+    from grover import diffuser
+    diff = diffuser(num_vars)
+
+    # Construct main quantum circuit
+    main_qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg)
+
+    # Create uniform superposition
+    from grover import initialize_s
+    main_qc = initialize_s(main_qc, range(num_vars))
+
+    # Grover loop: add the oracle and diffusor step k times
+    phase_oracle_gate = qc_phase_oracle.to_gate(label='U_${phase ksat}$')
+    register_map = list(range(num_vars))
+    for i in range(k):
+        main_qc.append(phase_oracle_gate, range(num_qubits))
+        main_qc = main_qc.compose(diff, register_map)
+
+    # Reapply Marking Oracle for correctness check
+    # TODO do we really need a new qubit for this?
+    qreg_out = QuantumRegister(size=1, name="q_out")
+    main_qc.add_register(qreg_out)
+    # Oracle over vars and ancillas but on clean output qubit
+    # TODO in the example they do this AFTER measuring,
+    # but we omit measuring here because we can test the circuit more easily then
+    marking_out_map = list(range(num_vars))
+    marking_out_map.extend(list(range(num_vars+1, num_vars+1+num_clauses+1)))
+    main_qc = main_qc.compose(qc_oracle, marking_out_map)
+    
+    return main_qc
 
 import unittest
 from numpy.testing import assert_array_equal
@@ -247,7 +303,7 @@ class TestSATOracle(unittest.TestCase):
         # Also test for a more complex clause
         clause_oracle_expected_statevec_mapping2 = {
             # Little endian: t, c3, c2, c1
-            # flip t if c1 or not(c2) or not(c3)
+            # Flip t if c1 or not(c2) or not(c3)
             '0000': '1000',
             '0001': '1001',
             '0010': '1010',
@@ -279,7 +335,7 @@ class TestSATOracle(unittest.TestCase):
         ksat_op = Operator(create_ksat_oracle(inp_reg3, tar, problem))
 
         clause_oracle_expected_statevec_mapping2 = {
-            # Little endian: a2, a1 t, c3, c2, c1
+            # Little endian: a2, a1, t, c3, c2, c1
             # We ignore the ancillas so just set them to 0
             # Flip t if (c3) and (c1 or not(c2))
             '000000': '000000',
@@ -303,69 +359,31 @@ class TestSATOracle(unittest.TestCase):
         self.assert_operation_statevecs(
             clause_oracle_expected_statevec_mapping2, ksat_op, inp_reg3, tar_reg, ancilla_reg2)
 
-    def test_grover(self):
+    def test_ksat_grover(self):
         problem = [[(2, True)], [(0, True),(1, False)]]
 
-        # TODO register sizes could be calculated from problem -> extract function
-        inp_reg3 = QuantumRegister(3)
-        tar = Qubit()
-        tar_reg = QuantumRegister(bits=[tar])
-        ancilla_reg2 = AncillaRegister(2)
+        qc = create_ksat_grover(problem, 1)
 
-        problem = [[(2, True)], [(0, True),(1, False)]]
-        qc_oracle = QuantumCircuit(6)
-        qc_oracle.append(create_ksat_oracle(inp_reg3, tar, problem), qc_oracle.qubits)
-        phase_qc = oracle_converter(qc_oracle, len(inp_reg3))
-
-        num_var = phase_qc.num_qubits-phase_qc.num_ancillas
-        from grover import diffuser
-        diff = diffuser(num_var-1)
-
-        # Construct main quantum circuit
-        main_qc = phase_qc.copy_empty_like()
-        creg = ClassicalRegister(num_var, name="c")
-        main_qc.add_register(creg)
-
-        # Create uniform superposition
-        from grover import initialize_s
-        main_qc = initialize_s(main_qc, range(num_var-1))
-
-        # Grover loop
-        # TODO find k
-        k=1
-
-        # Add the oracle-diffusor step k times
-        for i in range(k):
-            main_qc.append(phase_qc.to_gate(), range(main_qc.num_qubits))
-            register_map = list(range(num_var-1))
-            main_qc = main_qc.compose(diff, register_map)
-    
-        # Measure Inputs and Target
-        for i, c in enumerate(creg):
-            if i < len(creg)-1:
-                main_qc.measure(i, c) # measure inputs
-
-        # Reapply Marking Oracle for correctness check
-        qreg_out = QuantumRegister(size=1, name="q_out")
-        main_qc.add_register(qreg_out)
-        marking_out_map = list(range(num_var+main_qc.num_ancillas-1))
-        marking_out_map.append(-1)
-        main_qc = main_qc.compose(qc_oracle, marking_out_map)
-        main_qc.measure(-1, -1) # measure q_out into last classical register
-
-        print('\n')
-        print(main_qc.draw(output='text'))
-
-        from qiskit import Aer, transpile
-        from qiskit.visualization import plot_histogram
-
-        qasm_sim = Aer.get_backend('qasm_simulator')
-        transpiled_grover_circuit = transpile(main_qc, qasm_sim)
-        results = qasm_sim.run(transpiled_grover_circuit).result()
+        # Simulate
+        transpiled_qc = transpile(qc, self.test_backend)
+        results = self.test_backend.run(transpiled_qc).result()
         counts = results.get_counts()
-        histogram = plot_histogram(counts)
-        import matplotlib.pyplot as plt
-        plt.show()
+
+        expectedCounts = {
+            # Little endian: a2, a1, out, tar, c3, c2, c1
+            # We ignore the ancillas so just set them to 0
+            # Amplify state of solutions to problem: if (c3) and (c1 or not(c2)) -> '100', '101' and '111'
+            '0000000': 0.03125, 
+            '0000001': 0.03125, 
+            '0000010': 0.03125, 
+            '0000011': 0.03125, 
+            '0010100': 0.28125, # Correctly amplified and marked as correct solutions by last oracle
+            '0010101': 0.28125, # Correctly amplified and marked as correct solutions by last oracle
+            '0000110': 0.03125, 
+            '0010111': 0.28125  # Correctly amplified and marked as correct solutions by last oracle
+        }
+
+        self.assertEqual(counts, expectedCounts)
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
