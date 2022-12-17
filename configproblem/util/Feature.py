@@ -1,5 +1,6 @@
 from enum import Enum
 import itertools
+from CNF import CNF, Clause, Symbol
 
 class FeatureType(Enum):
     LEAF = 0,
@@ -85,51 +86,55 @@ class Feature:
 
         return features
 
-    def build_cnf(self):
+    def build_cnf(self) -> CNF:
         """ Construct a CNF based on the FeatureIDE code at:
             https://github.com/FeatureIDE/FeatureIDE/plugins/de.ovgu.featureide.fm.core/src/de/ovgu/featureide/fm/core/analysis/cnf/CNFCreator.java
         """
         root = self
-        clauses = set([])
-        clauses.add(root.get_name())
+        cnf = CNF()
+        clause_root = Clause()
+        clause_root.add_symbol(Symbol(root.get_name()))
+        cnf.add_clause(clause_root)
 
         features = root.get_all_features()
 
         for feature in features:
             for child in feature.get_children():
-                clauses.add("-" + child.get_name() + "|" + feature.get_name()) # Child implies parent
+                # Child implies parent
+                clause = Clause()
+                clause.add_symbols([Symbol(child.get_name(), negated=True), feature.get_name()])
+                cnf.add_clause(clause)
             
             if len(feature.get_children()) > 0:
                 if feature.type == FeatureType.AND:
                     # add clauses for mandatory children
                     for child in feature.get_children():
                         if child.get_mandatory():
-                            clauses.add(child.get_name() + "|-" + feature.get_name())
+                            clause = Clause()
+                            clause.add_symbols([child.get_name(), Symbol(feature.get_name(), negated=True)])
+                            cnf.add_clause(clause)
 
                 elif feature.type == FeatureType.OR or FeatureType.ALT:
                     # add a clause containing all children
-                    or_clause = ""
-                    for child in feature.get_children():
-                        or_clause += child.get_name() + "|"
-                    
-                    or_clause += "-" + feature.get_name() # dependence on parent
-                    clauses.add(or_clause)
+                    or_clause = Clause()
+                    or_clause.add_symbols([c.get_name() for c in feature.get_children()])
+
+                    # dependence on parent
+                    or_clause.add_symbol(Symbol(feature.get_name(), negated=True))
+                    cnf.add_clause(or_clause)
 
                     # additional clauses required for XOR/Alternatives
                     if feature.type == FeatureType.ALT:
-                        literals = set([c.get_name() for c in feature.get_children()])
-                        for pair in itertools.combinations(literals, 2):
-                            clauses.add(f"-{pair[0]}|-{pair[1]}")
+                        symbols = set([Symbol(c.get_name(), negated=True) for c in feature.get_children()])
+                        for pair in itertools.combinations(symbols, 2):
+                            xor_clause = Clause()
+                            xor_clause.add_symbols(pair)
+                            cnf.add_clause(xor_clause)
 
         # TODO: non-structure constraints
 
-        clauses_str = ""
-        for clause in clauses:
-            clauses_str += f"({clause})*"
-        else:
-            clauses_str = clauses_str[:-1]
-        print(clauses_str)
-        return clauses
+        print(cnf)
+        return cnf
 
 
     def boolean_representation(self, feature=None, constraints=[], queue=[]):
