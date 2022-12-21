@@ -1,4 +1,6 @@
 import warnings
+from qubovert.sat import AND, OR, NOT
+from qubovert import PCBO
 
 class Symbol:
     """ A boolean variable with a name"""
@@ -50,13 +52,6 @@ class Clause:
         except TypeError:
             self.add_symbol(symbol)
 
-    def remove_symbol(self, symbol):
-        if type(symbol) is not Symbol:
-            warnings.warn(f"Cannot remove symbol '{symbol}' of type {type(symbol)} from clause! Only Symbol types can be removed.")
-            return
-        
-        self.symbols.remove(symbol)
-
     def __eq__(self, __o: object) -> bool:
         if type(__o) is not Clause:
             return False
@@ -77,6 +72,12 @@ class Clause:
                 return False
 
         return True
+
+    def unique_symbols(self):
+        symbol_names = set()
+        for sym in self.symbols:
+            symbol_names.add(sym.name)
+        return symbol_names
 
     def __lt__(self, other):
         if type(other) != __class__:
@@ -112,13 +113,6 @@ class CNF:
         except TypeError:
             self.add_clause(clauses)
 
-        
-    def remove_clause(self, clause):
-        if type(clause) is not Clause:
-            warnings.warn(f"Cannot remove clause '{clause}' of type {type(clause)} from clause! Only Clause types can be removed.")
-            return
-        self.clauses.remove(clause)
-
     def __eq__(self, __o: object) -> bool:
         if type(__o) is not Clause:
             return False
@@ -143,3 +137,69 @@ class CNF:
         for c in sorted(self.clauses):
             s += f"({c})*"
         return s[:-1]
+
+    def unique_symbols(self):
+        symbol_names = set()
+        for clause in self.clauses:
+            symbol_names.union(clause.unique_symbols())
+        return symbol_names
+
+    # def to_qubo(self, debug=False):
+    #     # Create model
+    #     H = PCBO()
+
+    #     # enforce NOTs, i.e. a symbol cannot be true and false simultaneously
+    #     for symbol in self.unique_symbols():
+    #         H.add_constraint_eq_NOT(symbol, "-"+symbol)
+
+    #     # add clause constraints
+    #     for clause in self.clauses:
+    #         clause_strs = [str(s) for s in clause.symbols]
+    #         print(clause_strs)
+    #         print()
+    #         print(*clause_strs)
+    #         H.add_constraint_eq_OR(*clause_strs) 
+    #     if debug: 
+    #         print(H) 
+    #         print("number of variables:", H.num_binary_variables)
+    #         H_solutions = H.solve_bruteforce(all_solutions=True)
+    #         print("number of solutions:", len(H_solutions))
+
+        
+    #     # transformation to qubo
+    #     Q = H.to_qubo()
+    #     if debug:
+    #         print("Number of QUBO variables:", Q.num_binary_variables, "\n")
+    #         Q_solutions = [H.convert_solution(x) for x in Q.solve_bruteforce(all_solutions=True)]
+    #         print("number of solutions:", len(Q_solutions))
+    #         print("Q solutions", "do" if Q_solutions == H_solutions else "do not", "match the H solutions")
+
+    #     return Q
+
+    def to_qubo(self, debug=False):
+        ors = []
+
+        # add clause constraints
+        for clause in self.clauses:
+            clause_strs = [str(s) for s in clause.symbols]
+            # print(clause_strs)
+            # print()
+            # print(*clause_strs)
+            ors.append(OR(*clause_strs)) 
+
+        P = AND(*ors)
+        if debug: 
+            print(P) 
+
+
+        
+        # transformation to qubo
+        Q = P.to_qubo()
+        # if debug:
+        #     print("Number of QUBO variables:", Q.num_binary_variables, "\n")
+        #     Q_solutions = [H.convert_solution(x) for x in Q.solve_bruteforce(all_solutions=True)]
+        #     print("number of solutions:", len(Q_solutions))
+        #     print("Q solutions", "do" if Q_solutions == H_solutions else "do not", "match the H solutions")
+
+        return Q
+

@@ -47,8 +47,11 @@ class Extended_Modelreader:
         print(feature_model)
         print(feature_model.count_features())
         # print(feature_model.boolean_representation())
-        feature_model.build_cnf()
+        cnf = feature_model.build_cnf()
+        print(cnf.to_qubo(debug=True))
+        
         # get feature attributes
+        
         return model_xml
 
     def traverse_structure(self, xml, parent=None) -> Feature:
