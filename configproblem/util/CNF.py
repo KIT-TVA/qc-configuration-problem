@@ -2,6 +2,10 @@ import warnings
 from qubovert.sat import AND, OR, NOT
 from qubovert import PCBO
 
+from sympy.logic import simplify_logic
+from sympy import And, Or, Not
+from sympy import Symbol as SympySymbol
+
 class Symbol:
     """ A boolean variable with a name"""
     def __init__(self, name, negated=False) -> None:
@@ -141,8 +145,71 @@ class CNF:
     def unique_symbols(self):
         symbol_names = set()
         for clause in self.clauses:
-            symbol_names.union(clause.unique_symbols())
+            symbol_names = symbol_names.union(clause.unique_symbols())
         return symbol_names
+
+    def toSympy(self):
+        symbol2sympy_symbol = {}
+
+        for symbol in self.unique_symbols():
+            symbol2sympy_symbol[symbol] = SympySymbol(symbol)
+        
+        sympy_cnf_clauses = [] 
+        for clause in self.clauses:
+
+            sympy_clause_symbols = []
+            for symbol in clause.symbols:
+                sympy_symbol = symbol2sympy_symbol[symbol.name]
+
+                if symbol.negated:
+                    sympy_clause_symbols.append(Not(sympy_symbol))
+                else:
+                    sympy_clause_symbols.append(sympy_symbol)
+
+            sympy_cnf_clauses.append(Or(*sympy_clause_symbols))
+        
+        sympy_cnf = And(*sympy_cnf_clauses)
+        return sympy_cnf
+
+    def fromSympy(self, sympy_cnf:And):
+        cnf = CNF()
+
+        for sympy_cnf_clause in sympy_cnf.args:
+            clause = Clause()
+
+            if isinstance(sympy_cnf_clause, Or):
+                for sympy_symbol in sympy_cnf_clause.args:
+                    if isinstance(sympy_symbol, Not):
+                        clause.add_symbol(
+                            Symbol(sympy_symbol.args[0].name, 
+                                negated=True))
+                    elif isinstance(sympy_symbol,SympySymbol):
+                        clause.add_symbol(Symbol(sympy_symbol.name))
+            elif isinstance(sympy_cnf_clause,SympySymbol):
+                clause.add_symbol(Symbol(sympy_cnf_clause.name))
+            
+            cnf.add_clause(clause)
+
+        return cnf
+
+    def simplify(self):
+        """Convertes this CNF into sympy to use it's simplify function and then returns a new simplified CNF"""
+        print("Simplifying")
+
+        sympy_cnf = self.toSympy()
+        # print(sympy_cnf)
+
+        simplified_sympy_cnf = simplify_logic(sympy_cnf, form="cnf")
+        success = len(sympy_cnf.atoms(Or)) > len(simplified_sympy_cnf.atoms(Or))
+        print("Success: ", success)
+        # print(simplified_sympy_cnf)
+
+        simplified_cnf = self.fromSympy(simplified_sympy_cnf)
+
+        if(success):
+            print(simplified_cnf)
+
+        return simplified_cnf
 
     # def to_qubo(self, debug=False):
     #     # Create model
