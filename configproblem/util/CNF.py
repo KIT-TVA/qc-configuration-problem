@@ -270,3 +270,41 @@ class CNF:
 
         return Q
 
+    def to_problem(self):
+        """Transform this CNF instance to a suitable representation for our Grover Notebooks"""
+        problem = []
+        symbol_index = {}
+        index_counter = 0
+
+        for clause in self.clauses:
+            problem_clause = []
+            
+            for symbol in clause.symbols:
+                q_idx = symbol_index.get(symbol.name)
+                if q_idx is None:
+                    # Add the symbol to the dictionary
+                    q_idx = index_counter
+                    symbol_index[symbol.name] = index_counter
+                    index_counter += 1
+
+                problem_clause.append((q_idx, not symbol.negated))
+                
+            problem.append(problem_clause)
+        
+        return problem
+
+class TestCNF2Problem:
+    def test_cnf_to_problem(self):
+        f = CNF()
+        c1 = Clause()
+        c2 = Clause()
+        
+        c1.add_symbols([Symbol("B"), Symbol("D", negated=True), Symbol("E")])
+        c2.add_symbols([Symbol("A"), Symbol("C", negated=True)])
+        f.add_clauses([c1, c2])
+
+        print(f)
+        print(f.to_problem())
+
+if __name__ == "__main__":
+    TestCNF2Problem().test_cnf_to_problem()

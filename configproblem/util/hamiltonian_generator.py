@@ -9,7 +9,7 @@ Output the hamiltonian.
 """
 from enum import Enum
 import xml.etree.ElementTree as ET
-from Feature import Feature, FeatureType
+from .Feature import Feature, FeatureType
 
 
 class XMLT(str, Enum):
@@ -44,15 +44,14 @@ class Extended_Modelreader:
         structure = model_xml.getroot().find(XMLT.STRUCT)
         feature_model = self.traverse_structure(structure)
 
-        print(feature_model)
-        print(feature_model.count_features())
-        # print(feature_model.boolean_representation())
-        cnf = feature_model.build_cnf()
-        print(cnf.to_qubo(debug=True))
+        # print(feature_model)
+        # print(feature_model.count_features())
+        # cnf = feature_model.build_cnf()
+        # print(cnf.to_qubo(debug=True))
         
         # get feature attributes
         
-        return model_xml
+        return feature_model
 
     def traverse_structure(self, xml, parent=None) -> Feature:
         """parent = parent feature group"""

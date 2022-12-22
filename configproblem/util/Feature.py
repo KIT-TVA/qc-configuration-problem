@@ -1,6 +1,6 @@
 from enum import Enum
 import itertools
-from CNF import CNF, Clause, Symbol
+from .CNF import CNF, Clause, Symbol
 
 class FeatureType(Enum):
     LEAF = 0,
