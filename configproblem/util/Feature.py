@@ -11,7 +11,7 @@ class FeatureType(Enum):
 
 class Feature:
     def __init__(self, name: str, type: FeatureType, mandatory: bool):
-        self.name = name.replace(" ","")
+        self.name = ''.join(name.split())
         self.type = type
         self.mandatory = mandatory
         self.children = []
