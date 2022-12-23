@@ -2,6 +2,9 @@ from enum import Enum
 import itertools
 from .CNF import CNF, Clause, Symbol
 
+from sympy.logic.boolalg import to_cnf
+from sympy import And
+
 class FeatureType(Enum):
     LEAF = 0,
     AND = 1,
@@ -86,7 +89,7 @@ class Feature:
 
         return features
 
-    def build_cnf(self) -> CNF:
+    def build_cnf(self, constraints=None) -> CNF:
         """ Construct a CNF based on the FeatureIDE code at:
             https://github.com/FeatureIDE/FeatureIDE/plugins/de.ovgu.featureide.fm.core/src/de/ovgu/featureide/fm/core/analysis/cnf/CNFCreator.java
         """
@@ -131,9 +134,13 @@ class Feature:
                             xor_clause.add_symbols(pair)
                             cnf.add_clause(xor_clause)
 
-        # TODO: non-structure constraints
+        # non-structure constraints
+        if constraints is not None:
+            structure_sympy_cnf = cnf.toSympy()
+            joint_constraints = And(structure_sympy_cnf, constraints)
+            joint_constraints = to_cnf(joint_constraints, simplify=True, force=True)
+            cnf = cnf.fromSympy(joint_constraints)
 
-        print(cnf)
         return cnf
 
 

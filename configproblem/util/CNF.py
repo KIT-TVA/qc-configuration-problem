@@ -2,7 +2,7 @@ import warnings
 from qubovert.sat import AND, OR, NOT
 from qubovert import PCBO
 
-from sympy.logic import simplify_logic
+from sympy.logic.boolalg import to_cnf
 from sympy import And, Or, Not
 from sympy import Symbol as SympySymbol
 
@@ -199,7 +199,7 @@ class CNF:
         sympy_cnf = self.toSympy()
         # print(sympy_cnf)
 
-        simplified_sympy_cnf = simplify_logic(sympy_cnf, form="cnf")
+        simplified_sympy_cnf = to_cnf(sympy_cnf, simplify=True, force=True)
         success = len(sympy_cnf.atoms(Or)) > len(simplified_sympy_cnf.atoms(Or))
         print("Success: ", success)
         # print(simplified_sympy_cnf)
@@ -270,7 +270,7 @@ class CNF:
 
         return Q
 
-    def to_problem(self):
+    def to_problem(self, sympy_constraints=None):
         """Transform this CNF instance to a suitable representation for our Grover Notebooks"""
         problem = []
         symbol_index = {}

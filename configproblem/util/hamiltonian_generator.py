@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from .Feature import Feature, FeatureType
 
 from sympy.logic import simplify_logic
+from sympy.logic.boolalg import to_cnf, to_nnf
 from sympy import And, Or, Not, Implies, Equivalent
 from sympy import Symbol as SympySymbol
 
@@ -59,7 +60,7 @@ class Extended_Modelreader:
         constraints_xml = model_xml.getroot().find(XMLT.CONSTR)
         if constraints_xml is not None:
             constraints = self.traverse_constraints(constraints_xml)
-            print(constraints)
+            constraints_cnf = to_cnf(constraints, simplify=False)
 
         # print(feature_model)
         # print(feature_model.count_features())
@@ -68,7 +69,8 @@ class Extended_Modelreader:
         
         # get feature attributes
         
-        return feature_model
+        return feature_model, constraints_cnf
+    
 
     def traverse_structure(self, xml, parent=None) -> Feature:
         """parent = parent feature group"""
