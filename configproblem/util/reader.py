@@ -84,6 +84,6 @@ class DimacsReader():
         return self.toString()
 
 # dummy test
-p = DimacsReader()
-p.fromFile("benchmarks\Car.dimacs")
-print(p)
+# p = DimacsReader()
+# p.fromFile("benchmarks\Car.dimacs")
+# print(p)
