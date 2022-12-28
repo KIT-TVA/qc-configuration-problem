@@ -61,6 +61,7 @@ class Extended_Modelreader:
         if constraints_xml is not None:
             constraints = self.traverse_constraints(constraints_xml)
             constraints_cnf = to_cnf(constraints, simplify=False)
+            return feature_model, constraints_cnf
 
         # print(feature_model)
         # print(feature_model.count_features())
@@ -69,7 +70,7 @@ class Extended_Modelreader:
         
         # get feature attributes
         
-        return feature_model, constraints_cnf
+        return feature_model, None
     
 
     def traverse_structure(self, xml, parent=None) -> Feature:
