@@ -52,8 +52,8 @@ class DimacsReader():
                 else:
                     m = clauses.match(line)
                     if m:
-                        self.nFeatures = m.group(1)
-                        self.nClauses = m.group(2)
+                        self.nFeatures = int(m.group(1))
+                        self.nClauses = int(m.group(2))
                         self.clauses = [list(map(int, line.split(' '))) for line in lines]
                         break
 

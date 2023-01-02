@@ -1,8 +1,9 @@
 """Script to quickly aggregate information about feature models in CNF file format"""
 import argparse
+import pyapproxmc
 from os import walk
 from os.path import abspath, relpath, join, isfile
-import json, csv
+import json, csv, math
 
 import util.dimacs_reader as reader
 from util.cnf import CNF
@@ -56,24 +57,31 @@ def analyze_cnf(cnf_file, enable_sharpsat):
         exp_qubits = 1 + int(rd.nFeatures) + int(rd.nClauses)
     except KeyboardInterrupt:
         return {} # ignore errors in cnf parser
-    
-    n_solutions = -1
-    k = 1
-    if enable_sharpsat:
-        try:
-            print("...Counting Solutions")
-            # TODO invoke sharp sat for solution counting, GANAK is probably the best choice
-            # TODO derive k from n_solutions
-            pass 
-        except Exception:
-            pass # do not calculate solutions
 
     # transform from DimacsReader to simplified problem instance
     print("...Transforming Problem")
     problem = CNF().from_dimacs(rd).to_problem()
     print(problem)
+    
+    n_solutions = -1
+    solutions_percentage = -1
+    k = 1
+    if enable_sharpsat:
+        try:
+            print("...Counting Solutions", end="")
+            # invoke sharp sat for solution counting, GANAK is probably the best choice
+            n_solutions = count_solutions(problem)
+            # derive k from n_solutions 
+            solutions_percentage = round((n_solutions / (2**rd.nFeatures)) * 100)
+            k = max(1, math.floor(math.pi / 4 * math.sqrt((2**rd.nFeatures)/n_solutions)))
+            print(f": {n_solutions} ==> k = {k}")
+        except Exception:
+            print("Failed") # do not calculate solutions
+
+
+
     print("...Create Quantum Circuit")
-    quantum_circuit = create_ksat_grover(problem, k)
+    quantum_circuit, _ = create_ksat_grover(problem, k)
     
     print("...Collect Circuit Info")
     statevector_info = collect_circuit_info(quantum_circuit)
@@ -84,11 +92,31 @@ def analyze_cnf(cnf_file, enable_sharpsat):
         'nClauses': rd.nClauses,
         'expQbits': exp_qubits,
         'nSolutions': n_solutions,
+        'percentSolutions': solutions_percentage,
+        'estimatedK': k,
         'StateVectorWidth': statevector_info['width'],
         'StateVectorDepth': statevector_info['depth'],
         # 'FalconWidth': falcon_info['width'],
         # 'FalconDepth': falcon_info['depth'],
         }
+
+
+def count_solutions(problem):
+    """
+        Use approximate model counter to count solutions for the problem
+    """
+    c = pyapproxmc.Counter()
+    for clause in problem:  # [(symbol, negated), ...]
+        cl = []
+        for variable in clause:  # (symbol, negated)
+            val = variable[0] + 1
+            if variable[1]:
+                val *= -1
+            cl.append(val)
+        c.add_clause(cl)
+
+    count = c.count() # c[0]*2**c[1]
+    return count[0] * (2**count[1])
 
 
 def output(analytics, output_dir='.', output_name='cnfinfo'):
