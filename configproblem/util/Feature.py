@@ -1,6 +1,6 @@
 from enum import Enum
 import itertools
-from .CNF import CNF, Clause, Symbol
+from .cnf import CNF, Clause, Symbol
 
 from sympy.logic.boolalg import to_cnf
 from sympy import And
@@ -136,10 +136,10 @@ class Feature:
 
         # non-structure constraints
         if constraints is not None:
-            structure_sympy_cnf = cnf.toSympy()
+            structure_sympy_cnf = cnf.to_sympy()
             joint_constraints = And(structure_sympy_cnf, constraints)
             joint_constraints = to_cnf(joint_constraints, simplify=True, force=True)
-            cnf = cnf.fromSympy(joint_constraints)
+            cnf = cnf.from_sympy(joint_constraints)
 
         return cnf
 

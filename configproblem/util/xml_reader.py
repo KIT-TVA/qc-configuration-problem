@@ -9,7 +9,7 @@ Output the hamiltonian.
 """
 from enum import Enum
 import xml.etree.ElementTree as ET
-from .Feature import Feature, FeatureType
+from .feature import Feature, FeatureType
 
 from sympy.logic import simplify_logic
 from sympy.logic.boolalg import to_cnf, to_nnf
