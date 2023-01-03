@@ -1,0 +1,28 @@
+c 1 car
+c 2 body
+c 3 engine
+c 4 electric
+c 5 gas
+c 6 gear
+c 7 manual
+c 8 automatic
+c 9 keyless
+c 10 powerlocks
+p cnf 10 17
+1 0
+-2 1 0
+1 -3 0
+1 -6 0
+1 -9 0
+1 -10 0
+2 -1 0
+-1 3 0
+-1 6 0
+-4 3 0
+3 -5 0
+4 -3 5 0
+6 -7 0
+-8 6 0
+8 -6 7 0
+-8 -7 0
+-9 10 0
