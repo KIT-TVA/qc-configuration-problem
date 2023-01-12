@@ -21,9 +21,9 @@ def parse_arguments():
     parser.add_argument('-o', '--output_directory', default=".")
     parser.add_argument('-n', '--output_filename', default="cnfinfo")
     parser.add_argument('-q', '--quiet', action="store_true")
-    parser.add_argument('--max_width', default=1e3) # maximum width below which detailed analyses are carried out
+    parser.add_argument('--max_width', default=1e3, type=int) # maximum width below which detailed analyses are carried out
     parser.add_argument('--max_k', default=30) # limit for the circuit generation
-    parser.add_argument('--circuit_timeout', default=60) # number of seconds before creating and simulating a single circuit times out and is skipped
+    parser.add_argument('--step_timeout', default=60) # number of seconds each before model counting, approximation and circuit data collection time out
     parser.add_argument('--csv', action="store_true")
     parser.add_argument('--ssat', action="store_true")
     
@@ -89,7 +89,7 @@ def analyze_cnf(cnf_file):
     except Exception:
         return {"_" : "CNF Parser Error"} # ignore errors in cnf parser
 
-    if exp_qubits > args.max_width:
+    if exp_qubits > args.max_width > 0:
         return {'nFeatures': rd.nFeatures, 'nClauses': rd.nClauses, 'expQbits': exp_qubits}
 
     # transform from DimacsReader to simplified problem instance
@@ -102,16 +102,24 @@ def analyze_cnf(cnf_file):
 
     # count solutions if argument is issued. Note that OS check is done directly after parsing arguments
     if args.ssat:
-        try:
-            vprint("...Counting Solutions", end="")
-            # invoke sharp sat for solution counting, GANAK is probably the best choice
-            n_solutions = count_solutions(problem)
-            # derive k from n_solutions 
-            solutions_percentage = round((n_solutions / (2**rd.nFeatures)) * 10000) / 100
-            k = max(1, math.floor((math.pi / 4) * math.sqrt((2**rd.nFeatures)/n_solutions)))
+        vprint("...Counting Solutions", end="")
+        # invoke sharp sat for solution counting
+        n_solutions = count_solutions(cnf_file)
+
+        # try approximate counting if exact counting failed
+        # if n_solutions < 1:
+        #    n_solutions = approx_solutions(problem)
+        
+        # derive k from n_solutions if we found a value 
+        if n_solutions > 1:
+            try:
+                solutions_percentage = round((n_solutions / (2**rd.nFeatures)) * 10000) / 100
+                k = max(1, math.floor((math.pi / 4) * math.sqrt((2**rd.nFeatures)/n_solutions)))
+            except OverflowError:
+                vprint("\n Float Overflow!")
+                k = float("inf")
             vprint(f": {n_solutions} ==> k = {k}")
-        except Exception:
-            vprint("Failed") # do not calculate solutions
+
 
     # limit k for circuit purposes but store the calculated value
     real_k = k
@@ -121,7 +129,7 @@ def analyze_cnf(cnf_file):
 
     # attempt circuit creation and simulation
     try:
-        start_timeout(args.circuit_timeout)
+        start_timeout(args.step_timeout)
         vprint("...Create Quantum Circuit")
         quantum_circuit, _ = create_ksat_grover(problem, k)
 
@@ -151,23 +159,76 @@ def analyze_cnf(cnf_file):
     }
 
 
-def count_solutions(problem):
+def approx_solutions(problem):
     """
-        Use approximate model counter to count solutions for the problem
+        Use approximate model counters to count solutions for the problem
     """
     import pyapproxmc
-    c = pyapproxmc.Counter(epsilon=0.9, delta=0.5)
-    for clause in problem:  # [(symbol, negated), ...]
-        cl = []
-        for variable in clause:  # (symbol, negated)
-            val = variable[0] + 1
-            if variable[1]:
-                val *= -1
-            cl.append(val)
-        c.add_clause(cl)
+    count = -1
 
-    count = c.count() # (factor, two's-exponent)
-    return count[0] * (2**count[1])
+    try:
+        start_timeout(args.step_timeout)
+        c = pyapproxmc.Counter(epsilon=0.9, delta=0.2)
+        for clause in problem:  # [(symbol, negated), ...]
+            cl = []
+            for variable in clause:  # (symbol, negated)
+                val = variable[0] + 1
+                if variable[1]:
+                    val *= -1
+                cl.append(val)
+            c.add_clause(cl)
+
+        res = c.count() # (factor, two's-exponent)
+        count = res[0] * (2**res[1])
+    except TimeoutError:
+        vprint("Approximate model counting timed out")
+    finally:
+        reset_timer()
+    
+    return count
+
+
+def count_solutions(cnf_path):
+    """
+        Use exact model counter GANAK to count solutions for the problem
+        GANAK must be available in the system PATH!
+    """
+    import psutil, subprocess
+    def kill(proc_pid):
+        process = psutil.Process(proc_pid)
+        for proc in process.children(recursive=True):
+            proc.kill()
+        process.kill()
+
+    count = -1
+    # execute GANAK, assume it in system path
+    ganak_process = subprocess.Popen(["ganak", cnf_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    try:
+        ganak_process.wait(timeout=args.step_timeout)
+
+        # get subprocess output
+        out, err = ganak_process.communicate()
+
+        # evaluate process results
+        if ganak_process.returncode != 0:
+            vprint("Error when executing GANAK subprocess. Is GANAK in your PATH?")
+            vprint(err.decode())
+            return -1
+
+        # check ganak results
+        ganak_output = out.decode().split('\n')
+        for line in ganak_output:
+            if line.startswith("s") and "mc" in line:
+                res = line.split(" ")[-1] # ganak puts the result in a line formatted "s mc <RES>" if the formula was satifiable
+                count = int(res)
+
+    except subprocess.TimeoutExpired:
+        vprint("Model counting timed out!")
+        kill(ganak_process.pid)
+
+
+    return count
 
 
 def output(analytics, output_dir='.', output_name='cnfinfo'):

@@ -109,7 +109,10 @@ class CNF:
         if type(clause) is not Clause:
             warnings.warn(f"Cannot add clause '{clause}' of type {type(clause)} to clause! Only Clause types can be added.")
             return
-    
+
+        if clause in self.clauses:
+            warnings.warn(f"Will not add clause {clause} because it is already contained in the CNF!")
+
         self.clauses.add(clause)
 
     def add_clauses(self, clauses):
@@ -293,10 +296,7 @@ class CNF:
             clause = Clause()
             for dimacs_symbol in dimacs_clause:
                 symbol_id = abs(dimacs_symbol)
-                try:
-                    symbol_name = dimacs_reader.features[symbol_id]
-                except KeyError:
-                    symbol_name = f"s_{symbol_id}"
+                symbol_name = f"dimacs_{symbol_id}"
                 
                 if dimacs_symbol < 0:
                     # negated symbol
@@ -310,6 +310,16 @@ class CNF:
             # add non empty clause to cnf
             if len(clause.symbols) > 0:
                 cnf.add_clause(clause)
+            else:
+                print(f"Hint: Did not add dimacs clause: {dimacs_clause}")
+
+        # Sanity check
+        symbols = cnf.unique_symbols()
+        nClauses = len(cnf.clauses)
+        if len(symbols) != dimacs_reader.nFeatures:
+            warnings.warn(f"Feature Mismatch between dimacs input and generated CNF! dimacs {dimacs_reader.nFeatures} / cnf {len(symbols)}")
+        if nClauses != dimacs_reader.nClauses:
+            warnings.warn(f"Clauses Mismatch between dimacs input and generated CNF! dimacs {dimacs_reader.nClauses} / cnf {nClauses}")
 
         return cnf
 
