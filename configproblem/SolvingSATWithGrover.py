@@ -11,6 +11,8 @@ np.set_printoptions(threshold=1e6)
 
 from grover import diffuser
 from util.xml_reader import Extended_Modelreader
+from util.dimacs_reader import DimacsReader
+from util.cnf import CNF
 
 
 def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:
@@ -284,16 +286,22 @@ def create_grover_for_model(rel_path, k=1):
     # load given model
     current_folder = globals()['_dh'][0]
     some_model_path = os.path.join(current_folder, rel_path)
-    reader = Extended_Modelreader()
-    feature_model, constraints = reader.readModel(some_model_path)
     
-    # transform to cnf and then to problem
-    feature_cnf = feature_model.build_cnf(constraints)
-    print(feature_cnf)
-    feature_problem = feature_cnf.to_problem()
+    if rel_path.split('.')[-1] == "xml":
+        reader = Extended_Modelreader()
+        feature_model, constraints = reader.readModel(some_model_path)
+        # transform to cnf and then to problem
+        feature_cnf = feature_model.build_cnf(constraints)
+        print(feature_cnf)
+        problem = feature_cnf.to_problem()
+    
+    elif rel_path.split('.')[-1] in ["dimacs", "cnf"]:
+        rd = DimacsReader()
+        rd.fromFile(some_model_path)
+        problem = CNF().from_dimacs(rd).to_problem()
     
     # create grover circuit
-    problem_qc, problem_oracle = create_ksat_grover(feature_problem, k) # Create the circuit
+    problem_qc, problem_oracle = create_ksat_grover(problem, k) # Create the circuit
     return problem_qc
 
 
