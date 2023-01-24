@@ -1,4 +1,4 @@
-from util.hamiltonian_generator import Extended_Modelreader
+from util.xml_reader import Extended_Modelreader
 
 if __name__ == "__main__":
     import os 

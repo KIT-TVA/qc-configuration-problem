@@ -6,10 +6,12 @@ from sympy.logic.boolalg import to_cnf
 from sympy import And, Or, Not
 from sympy import Symbol as SympySymbol
 
+from . import dimacs_reader
+
 class Symbol:
     """ A boolean variable with a name"""
     def __init__(self, name, negated=False) -> None:
-        self.name = name
+        self.name = str(name)
         self.negated = negated # True indicates a negation is present, i.e. !name
 
     def __eq__(self, __o: object) -> bool:
@@ -107,7 +109,10 @@ class CNF:
         if type(clause) is not Clause:
             warnings.warn(f"Cannot add clause '{clause}' of type {type(clause)} to clause! Only Clause types can be added.")
             return
-    
+
+        if clause in self.clauses:
+            warnings.warn(f"Will not add clause {clause} because it is already contained in the CNF!")
+
         self.clauses.add(clause)
 
     def add_clauses(self, clauses):
@@ -148,7 +153,7 @@ class CNF:
             symbol_names = symbol_names.union(clause.unique_symbols())
         return symbol_names
 
-    def toSympy(self):
+    def to_sympy(self):
         symbol2sympy_symbol = {}
 
         for symbol in self.unique_symbols():
@@ -171,7 +176,7 @@ class CNF:
         sympy_cnf = And(*sympy_cnf_clauses)
         return sympy_cnf
 
-    def fromSympy(self, sympy_cnf:And):
+    def from_sympy(self, sympy_cnf:And):
         cnf = CNF()
 
         for sympy_cnf_clause in sympy_cnf.args:
@@ -194,20 +199,12 @@ class CNF:
 
     def simplify(self):
         """Convertes this CNF into sympy to use it's simplify function and then returns a new simplified CNF"""
-        print("Simplifying")
-
-        sympy_cnf = self.toSympy()
-        # print(sympy_cnf)
-
+        sympy_cnf = self.to_sympy()
         simplified_sympy_cnf = to_cnf(sympy_cnf, simplify=True, force=True)
         success = len(sympy_cnf.atoms(Or)) > len(simplified_sympy_cnf.atoms(Or))
-        print("Success: ", success)
-        # print(simplified_sympy_cnf)
+        # print("Simplyfing succes: ", success)
 
-        simplified_cnf = self.fromSympy(simplified_sympy_cnf)
-
-        if(success):
-            print(simplified_cnf)
+        simplified_cnf = self.from_sympy(simplified_sympy_cnf)
 
         return simplified_cnf
 
@@ -292,6 +289,39 @@ class CNF:
             problem.append(problem_clause)
         
         return problem
+
+    def from_dimacs(self, dimacs_reader: dimacs_reader.DimacsReader):
+        cnf = CNF()
+        for dimacs_clause in dimacs_reader.clauses:
+            clause = Clause()
+            for dimacs_symbol in dimacs_clause:
+                symbol_id = abs(dimacs_symbol)
+                symbol_name = f"dimacs_{symbol_id}"
+                
+                if dimacs_symbol < 0:
+                    # negated symbol
+                    sym = Symbol(symbol_name, negated=True)
+                    clause.add_symbol(sym)
+                elif dimacs_symbol > 0:
+                    # regular symbol
+                    sym = Symbol(symbol_name)
+                    clause.add_symbol(sym)
+            
+            # add non empty clause to cnf
+            if len(clause.symbols) > 0:
+                cnf.add_clause(clause)
+            else:
+                print(f"Hint: Did not add dimacs clause: {dimacs_clause}")
+
+        # Sanity check
+        symbols = cnf.unique_symbols()
+        nClauses = len(cnf.clauses)
+        if len(symbols) != dimacs_reader.nFeatures:
+            warnings.warn(f"Feature Mismatch between dimacs input and generated CNF! dimacs {dimacs_reader.nFeatures} / cnf {len(symbols)}")
+        if nClauses != dimacs_reader.nClauses:
+            warnings.warn(f"Clauses Mismatch between dimacs input and generated CNF! dimacs {dimacs_reader.nClauses} / cnf {nClauses}")
+
+        return cnf
 
 class TestCNF2Problem:
     def test_cnf_to_problem(self):
