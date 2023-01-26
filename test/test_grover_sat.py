@@ -1,4 +1,7 @@
-from configproblem.SolvingSATWithGrover import * # TODO fix this test sometime
+from configproblem.grover_sat import create_and_oracle, create_or_oracle, create_clause_oracle, create_ksat_oracle, create_ksat_grover
+
+from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, QuantumCircuit
+from qiskit.quantum_info import Operator
 import unittest
 from numpy.testing import assert_array_equal
 
@@ -187,6 +190,7 @@ class TestSATOracle(unittest.TestCase):
         problem = [[(2, True)], [(0, True),(1, False)]]
 
         qc, qc_oracle = create_ksat_grover(problem, 1)
+        qc.remove_final_measurements()
 
         # Reapply Marking Oracle for correctness check
         num_vars = len(set([statement[0] for clause in problem for statement in clause]))
