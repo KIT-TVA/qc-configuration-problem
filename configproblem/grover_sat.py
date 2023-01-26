@@ -9,7 +9,6 @@ import math
 import os
 np.set_printoptions(threshold=1e6)
 
-from grover import diffuser
 from util.xml_reader import Extended_Modelreader
 from util.dimacs_reader import DimacsReader
 from util.cnf import CNF
@@ -228,6 +227,28 @@ def init_sat_circuit(problem):
 
     return (num_vars, num_qubits, main_qc, qc_oracle, qc_phase_oracle)
 
+def diffuser(nqubits):
+    qc = QuantumCircuit(nqubits)
+    # Apply transformation |s> -> |00..0> (H-gates)
+    for qubit in range(nqubits):
+        qc.h(qubit)
+    # Apply transformation |00..0> -> |11..1> (X-gates)
+    for qubit in range(nqubits):
+        qc.x(qubit)
+    # Do multi-controlled-Z gate
+    qc.h(nqubits-1)
+    qc.mct(list(range(nqubits-1)), nqubits-1)  # multi-controlled-toffoli
+    qc.h(nqubits-1)
+    # Apply transformation |11..1> -> |00..0>
+    for qubit in range(nqubits):
+        qc.x(qubit)
+    # Apply transformation |00..0> -> |s>
+    for qubit in range(nqubits):
+        qc.h(qubit)
+    # We will return the diffuser as a gate
+    U_s = qc.to_gate()
+    U_s.name = "U$_{Diffuser}$"
+    return U_s
 
 def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit]:
     """
@@ -250,7 +271,7 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[Quantu
     main_qc.measure(register_map, register_map)
 #     main_qc.measure_all()
     
-    return (main_qc, qc_phase_oracle)
+    return (main_qc, qc_oracle)
 
 
 def calc_statevector_from(counts, width=None):
@@ -284,7 +305,7 @@ def calc_statevector_from(counts, width=None):
 
 def create_grover_for_model(rel_path, k=1):
     # load given model
-    current_folder = globals()['_dh'][0]
+    current_folder = os.path.dirname(os.path.realpath(__file__))
     some_model_path = os.path.join(current_folder, rel_path)
     
     if rel_path.split('.')[-1] == "xml":
