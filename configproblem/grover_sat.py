@@ -13,6 +13,8 @@ from util.xml_reader import Extended_Modelreader
 from util.dimacs_reader import DimacsReader
 from util.cnf import CNF
 
+from fragments.quantum_states import add_all_hadamards
+
 
 def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:
     """
@@ -186,15 +188,6 @@ def print_diagonal_analysis(circuit, measurements=None):
                     state_marking = "invalid"
         
         print(vs, state_str, state_marking)
-        
-
-def initialize_s(qc, qubits):
-    """
-        Apply a H-gate to 'qubits' in qc
-    """
-    for q in qubits:
-        qc.h(q)
-    return qc
 
 
 def init_sat_circuit(problem):
@@ -223,7 +216,7 @@ def init_sat_circuit(problem):
     main_qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg, c_regs)
 
     # Create uniform superposition
-    main_qc = initialize_s(main_qc, range(num_vars))
+    main_qc = add_all_hadamards(main_qc, range(num_vars))
 
     return (num_vars, num_qubits, main_qc, qc_oracle, qc_phase_oracle)
 
