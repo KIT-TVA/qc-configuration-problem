@@ -7,6 +7,7 @@ from pprint import pprint
 import math
 
 from fragments.quantum_states import superposition_circuit
+from util.hamiltonian_math import compute_hamiltonian_energy
 
 def mixer_circuit(nqubits: int) -> QuantumCircuit:
     beta = Parameter("$\\beta$")
@@ -84,50 +85,6 @@ def quantum(hamiltonian, nqubits, layers, beta_val, gamma_val, shots=512, amplit
     return counts, qc
 
 
-def compute_hamiltonian_energy(hamiltonian, counts):
-    def compute_config_energy(config: str):
-        energy = 0
-        
-        for key, factor in hamiltonian.items():
-            acting_qubits = len(key)
-
-            if acting_qubits == 0:
-                # identity case
-                energy += factor
-            elif acting_qubits == 1:
-                # single qubit term
-                q1 = key[0]
-                energy += factor * config[q1]
-            elif acting_qubits ==2:
-                # quadratic qubit term
-                q1 = key[0]
-                q2 = key[1]
-                energy += factor * config[q1] * config[q2]
-            else:
-                # non quadratic, error
-                RuntimeError(f"Non quadratic term in hamiltonian: {key, factor}")
-
-        return energy
-    
-    # # take the config that was measured most often
-    # config_str = max(counts, key=counts.get) 
-    # # convert the 0/1 feature string to ising integers
-    # config = [-1 if s == "0" else 1 for s in config_str]
-    # return compute_config_energy(config)
-
-    average_energy = 0
-    for config_str in counts.keys():
-        config = [-1 if s == "0" else 1 for s in config_str]
-        energy = compute_config_energy(config)*counts.get(config_str)
-
-        # print(config, counts.get(config_str), energy)
-        average_energy += energy
-
-    average_energy /= counts.shots()
-    # print("Average:", average_energy)
-    return average_energy
-
-
 def get_expectation(hamiltonian, nqubits, nlayers, shots=128, amplitude_vector=None):
     backend = Aer.get_backend('qasm_simulator')
     backend.shots = shots
@@ -142,7 +99,7 @@ def get_expectation(hamiltonian, nqubits, nlayers, shots=128, amplitude_vector=N
         })
         
         counts = backend.run(qc, nshots=shots).result().get_counts()
-        return compute_hamiltonian_energy(hamiltonian, counts)
+        return compute_hamiltonian_energy(hamiltonian, counts, strategy='min')
     
     return execute_circ
 
@@ -163,7 +120,7 @@ def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0
 
     # optimize beta and gamma
     if use_optimizer:
-        res = minimize(expectation, [theta["beta"], theta["gamma"]], method='BFGS', tol=1e-12)
+        res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA', tol=1e-12)
         print(res)
         theta = {"beta": res.x[0], "gamma": res.x[1]}    
 
