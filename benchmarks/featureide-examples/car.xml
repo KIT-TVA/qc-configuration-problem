@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<extendedFeatureModel>
+	<properties>
+		<graphics key="autolayoutconstraints" value="false"/>
+		<graphics key="legendautolayout" value="true"/>
+		<graphics key="showconstraints" value="true"/>
+		<graphics key="showshortnames" value="false"/>
+		<graphics key="layout" value="horizontal"/>
+		<graphics key="showcollapsedconstraints" value="true"/>
+		<graphics key="legendhidden" value="false"/>
+		<graphics key="layoutalgorithm" value="1"/>
+	</properties>
+	<struct>
+		<and mandatory="true" name="car">
+			<graphics key="collapsed" value="false"/>
+			<feature mandatory="true" name="body"/>
+			<or mandatory="true" name="engine">
+				<feature name="electric">
+					<attribute name="cost" type="double" unit="" value="30.0"/>
+				</feature>
+				<feature name="gas">
+					<attribute name="cost" type="double" unit="" value="20.0"/>
+				</feature>
+			</or>
+			<alt mandatory="true" name="gear">
+				<feature name="manual">
+					<attribute name="cost" type="double" unit="" value="25.0"/>
+				</feature>
+				<feature name="automatic">
+					<attribute name="cost" type="double" unit="" value="50.0"/>
+				</feature>
+			</alt>
+			<feature name="keyless">
+				<attribute name="cost" type="double" unit="" value="10.0"/>
+			</feature>
+			<feature name="powerlocks">
+				<attribute name="cost" type="double" unit="" value="10.0"/>
+			</feature>
+		</and>
+	</struct>
+	<constraints>
+		<rule>
+			<imp>
+				<var>keyless</var>
+				<var>powerlocks</var>
+			</imp>
+		</rule>
+	</constraints>
+</extendedFeatureModel>

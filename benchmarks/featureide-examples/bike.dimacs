@@ -1,0 +1,182 @@
+c 1 BikeConfigurator
+c 2 Frame
+c 3 Steel
+c 4 Steel/Titanimum
+c 5 Handlebar
+c 6 S Type
+c 7 M Type
+c 8 P Type
+c 9 H Type
+c 10 Frame Color
+c 11 Black
+c 12 Grey
+c 13 Raw Lacquer
+c 14 Mudguards
+c 15 Version E
+c 16 Version L
+c 17 Version R
+c 18 Number of Gears
+c 19 1
+c 20 3
+c 21 6
+c 22 Gear Ratio
+c 23 Standard
+c 24 +8%
+c 25 -12%
+c 26 Tyres
+c 27 Marathon Racer
+c 28 Kojak
+c 29 Marathon
+c 30 Lightning
+c 31 Reflectors Only
+c 32 Battery Lightning
+c 33 Shimano Hub Dynamo
+c 34 SON Hub Dynamo
+c 35 Saddle Height
+c 36 Standard Height
+c 37 Extended
+c 38 Telescopic
+c 39 Saddle Type
+c 40 Brompton
+c 41 Brompton with Light
+c 42 Special Men
+c 43 Special Ladies
+c 44 Brompton Wide
+c 45 Brompton Wide with Light
+c 46 Toolkit
+c 47 Front Luggage
+c 48 Carrier Block only
+c 49 Tote Bag
+c 50 Roll Top Bag
+c 51 O Bag
+c 52 B Bag
+c 53 Saddle Bag
+c 54 Rack Sack
+p cnf 54 127
+1 0
+1 -2 0
+1 -5 0
+1 -10 0
+1 -14 0
+1 -18 0
+1 -22 0
+1 -26 0
+1 -30 0
+1 -35 0
+1 -39 0
+1 -46 0
+1 -47 0
+1 -52 0
+1 -53 0
+1 -54 0
+2 -1 0
+5 -1 0
+10 -1 0
+14 -1 0
+18 -1 0
+22 -1 0
+26 -1 0
+30 -1 0
+35 -1 0
+39 -1 0
+2 -3 0
+2 -4 0
+3 4 -2 0
+-3 -4 0
+5 -6 0
+5 -7 0
+5 -8 0
+5 -9 0
+6 7 8 9 -5 0
+-6 -7 0
+-6 -8 0
+-6 -9 0
+-7 -8 0
+-7 -9 0
+-8 -9 0
+10 -11 0
+10 -12 0
+10 -13 0
+11 12 13 -10 0
+-11 -12 0
+-11 -13 0
+-12 -13 0
+14 -15 0
+14 -16 0
+14 -17 0
+15 16 17 -14 0
+-15 -16 0
+-15 -17 0
+-16 -17 0
+18 -19 0
+18 -20 0
+18 -21 0
+19 20 21 -18 0
+-19 -20 0
+-19 -21 0
+-20 -21 0
+22 -23 0
+22 -24 0
+22 -25 0
+23 24 25 -22 0
+-23 -24 0
+-23 -25 0
+-24 -25 0
+26 -27 0
+26 -28 0
+26 -29 0
+27 28 29 -26 0
+-27 -28 0
+-27 -29 0
+-28 -29 0
+30 -31 0
+30 -32 0
+30 -33 0
+30 -34 0
+31 32 33 34 -30 0
+-31 -32 0
+-31 -33 0
+-31 -34 0
+-32 -33 0
+-32 -34 0
+-33 -34 0
+35 -36 0
+35 -37 0
+35 -38 0
+36 37 38 -35 0
+-36 -37 0
+-36 -38 0
+-37 -38 0
+39 -40 0
+39 -41 0
+39 -42 0
+39 -43 0
+39 -44 0
+39 -45 0
+40 41 42 43 44 45 -39 0
+-40 -41 0
+-40 -42 0
+-40 -43 0
+-40 -44 0
+-40 -45 0
+-41 -42 0
+-41 -43 0
+-41 -44 0
+-41 -45 0
+-42 -43 0
+-42 -44 0
+-42 -45 0
+-43 -44 0
+-43 -45 0
+-44 -45 0
+47 -48 0
+47 -49 0
+47 -50 0
+47 -51 0
+48 49 50 51 -47 0
+-48 -49 0
+-48 -50 0
+-48 -51 0
+-49 -50 0
+-49 -51 0
+-50 -51 0
