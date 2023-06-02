@@ -15,10 +15,3 @@ Clone (or download) this repository and install dependencies via pip:
 ```
 pip install -r requirements.txt
 ```
-
-## ToDo List (will be updated)
-- [ ] Import feature models with attributes (DIMACS?)
-- [ ] Use Grover-Algorithm to find the optimal configuration (i.e., construct phase oracle)
-- [ ] Use Quantum-Tree-Walk (and BDDs) as alternative
-- [ ] Clean requirements.txt
-- [ ] ...

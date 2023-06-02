@@ -196,11 +196,10 @@ class TestSATOracle(unittest.TestCase):
         num_vars = len(set([statement[0] for clause in problem for statement in clause]))
         num_clauses = len(problem)
 
-        # TODO do we really need a new qubit for this?
         qreg_out = QuantumRegister(size=1, name="q_out")
         qc.add_register(qreg_out)
         # Oracle over vars and ancillas but on clean output qubit
-        # TODO in the example they do this AFTER measuring,
+        # In the example they do this AFTER measuring,
         # but we omit measuring here because we can test the circuit more easily then
         marking_out_map = list(range(num_vars))
         marking_out_map.extend(list(range(num_vars+1, num_vars+1+num_clauses+1)))

@@ -135,7 +135,6 @@ def analyze_cnf(cnf_file):
 
         vprint("...Collect Circuit Info")
         statevector_info = collect_circuit_info(quantum_circuit)
-        # falcon_info = collect_circuit_info(quantum_circuit, TODO Falconr8)
     except TimeoutError:
         vprint("! Collecting info timed out !")
         statevector_info = {'width':-1, 'depth':-1}
@@ -154,8 +153,6 @@ def analyze_cnf(cnf_file):
         'estimatedK': real_k,
         'StateVectorWidth': statevector_info['width'],
         'StateVectorDepth': statevector_info['depth'],
-        # 'FalconWidth': falcon_info['width'],
-        # 'FalconDepth': falcon_info['depth'],
     }
 
 
