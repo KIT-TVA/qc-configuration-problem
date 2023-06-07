@@ -106,7 +106,7 @@ def get_expectation(hamiltonian, nqubits, nlayers, shots=128, amplitude_vector=N
 
 def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector=None, use_optimizer=True):
     """
-        Applies the QAOA Algorithm for the given problem hamiltonian in QUSO form.
+        Applies the QAOA Algorithm for the given problem hamiltonian in QUBO form.
         
         :param int layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
         :param int n_features: the number of independent variables in the input hamiltonian
@@ -125,5 +125,5 @@ def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0
         theta = {"beta": res.x[0], "gamma": res.x[1]}    
 
     # run qaoa circuit with parameters in theta
-    counts, qc = quantum(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], 100*shots, warmstart_statevector)
+    counts, qc = quantum(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], shots, warmstart_statevector)
     return counts, qc
