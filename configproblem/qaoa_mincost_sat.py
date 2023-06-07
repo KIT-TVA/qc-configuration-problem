@@ -125,5 +125,5 @@ def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0
         theta = {"beta": res.x[0], "gamma": res.x[1]}    
 
     # run qaoa circuit with parameters in theta
-    counts, qc = quantum(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], 100*shots, warmstart_statevector)
+    counts, qc = quantum(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], shots, warmstart_statevector)
     return counts, qc
