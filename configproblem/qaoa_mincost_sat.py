@@ -43,7 +43,7 @@ def problem_circuit(hamiltonian, nqubits: int) -> QuantumCircuit:
     return qc_p, gamma
 
 
-def qaoa_circuit(hamiltonian, nqubits, nlayers, amplitude_vector=None) -> QuantumCircuit:
+def qaoa_circuit(hamiltonian, nqubits, nlayers, amplitude_vector=None, measure=True) -> QuantumCircuit:
     if amplitude_vector is not None:
         # warm start
         qc = QuantumCircuit(nqubits) 
@@ -63,7 +63,8 @@ def qaoa_circuit(hamiltonian, nqubits, nlayers, amplitude_vector=None) -> Quantu
         qc.barrier()
         qc = qc.compose(qg_mixer)
 
-    qc.measure_all()
+    if measure:
+        qc.measure_all()
     return qc, beta, gamma
 
 
