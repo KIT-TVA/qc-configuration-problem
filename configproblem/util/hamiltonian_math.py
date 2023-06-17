@@ -1,4 +1,3 @@
-import math
 import numpy as np
 from qubovert import spin_var
 
@@ -139,6 +138,7 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
 
             :param hamiltonian: the hamiltonian (QUBO) describing the system
             :param statevector: the statevector for a quantum system for the hamiltonian
+            :param nqubits: number of qubits in the quantum system
             :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
         """
     if strategy == 'avg':
