@@ -67,7 +67,7 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
 
 
 def plot_f_mu_cost_landscape(hamiltonian, nqubits):
-    # Calculate f(z) using the combined_hamiltonian for each bitstring z
+    # Calculate f(z) using the given hamiltonian for each bitstring z
     f = np.zeros(shape=(2 ** nqubits))
 
     for i in range(0, 2 ** nqubits):
