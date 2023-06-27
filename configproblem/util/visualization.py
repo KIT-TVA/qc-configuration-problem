@@ -12,6 +12,15 @@ from configproblem.qaoa_mincost_sat import qaoa_circuit
 
 
 def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size):
+    """
+        Plots the cost landscape for different values of beta and gamma
+        for a given list of hamiltonians and list of strategies.
+
+        :param hamiltonians: list of hamiltonians to plot
+        :param strategies: list of strategies to plot
+        :param nqubits: number of qubits
+        :param step_size: step size for beta and gamma, value will be doubled for gamma as it's limits are also doubled
+    """
     backend = StatevectorSimulator()
 
     plot_arguments = []
@@ -67,6 +76,13 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
 
 
 def plot_f_mu_cost_landscape(hamiltonian, nqubits):
+    """
+        Plots the cost landscape for f and mu for a given hamiltonian where f is the function for the config energy
+        and mu is the average difference in energy between the current config and all configs with hamming distance 1.
+
+        :param hamiltonian: hamiltonian used to calculate f
+        :param nqubits: number of qubits
+    """
     # Calculate f(z) using the given hamiltonian for each bitstring z
     f = np.zeros(shape=(2 ** nqubits))
 
@@ -117,6 +133,14 @@ def plot_f_mu_cost_landscape(hamiltonian, nqubits):
 
 
 def plot_counts_histogram(counts, best_config, valid_configs):
+    """
+        Plots a histogram of the counts for each possible config.
+        The best config is highlighted in red and valid configs are highlighted in brown.
+
+        :param counts: dictionary containing the counts for each config that was measured
+        :param best_config: valid config with the lowest energy
+        :param valid_configs: list of valid configs
+    """
     for i in range(0, 2 ** 6):
         if not counts.keys().__contains__(np.binary_repr(i, 6)):
             counts[np.binary_repr(i, 6)] = 0

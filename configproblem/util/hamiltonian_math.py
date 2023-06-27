@@ -134,13 +134,13 @@ def hamiltonian_strategy_min_from_statevector(hamiltonian, statevector, nqubits,
 
 def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits, strategy='avg'):
     """
-            Compute the energy state of a hamiltonian from statevector.
+        Compute the energy state of a hamiltonian from the statevector.
 
-            :param hamiltonian: the hamiltonian (QUBO) describing the system
-            :param statevector: the statevector for a quantum system for the hamiltonian
-            :param nqubits: number of qubits in the quantum system
-            :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
-        """
+        :param hamiltonian: the hamiltonian (QUBO) describing the system
+        :param statevector: the statevector for a quantum system for the hamiltonian
+        :param nqubits: number of qubits in the quantum system
+        :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
+    """
     if strategy == 'avg':
         return hamiltonian_strategy_average_from_statevector(hamiltonian, statevector, nqubits)
     elif strategy == 'top':
