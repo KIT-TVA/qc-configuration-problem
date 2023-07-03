@@ -1,7 +1,9 @@
 from qiskit import Aer, transpile, QuantumCircuit, ClassicalRegister, QuantumRegister
 from qiskit.circuit import Parameter
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import minimize, basinhopping
+from qubovert.utils import DictArithmetic
 
 from pprint import pprint
 import math
@@ -128,3 +130,34 @@ def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0
     # run qaoa circuit with parameters in theta
     counts, qc = quantum(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], shots, warmstart_statevector)
     return counts, qc
+
+
+def deflate_config(hamiltonian, config_str, deflation_factor=1000):
+    # TODO add docstring
+
+    config_array = np.array([[0 if s == "0" else 1 for s in config_str]])
+    deflation_matrix = np.matmul(config_array.transpose(), config_array)
+
+    deflation_dict_arithmetic = DictArithmetic()
+    for i, i_val in enumerate(deflation_matrix):
+        for j, j_val in enumerate(i_val):
+            deflation_dict_arithmetic[(i, j)] = j_val * deflation_factor
+
+    return hamiltonian + deflation_dict_arithmetic
+
+
+def config_prioritization(hamiltonian, output_list_size):
+    # TODO add docstring
+
+    current_hamiltonian = hamiltonian
+    output_list = []
+
+    for i in range(0, output_list_size):
+        counts, qc = apply_qaoa(current_hamiltonian)
+        current_config = max(counts, key=counts.get)
+        output_list.append(current_config)
+
+        current_hamiltonian = deflate_config(hamiltonian, current_config)
+
+    return output_list
+    
