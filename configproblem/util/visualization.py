@@ -3,12 +3,10 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
-from qiskit_aer import StatevectorSimulator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import gaussian_kde
 from configproblem.util.hamiltonian_math import compute_config_energy
-from configproblem.util.hamiltonian_math import compute_hamiltonian_energy_from_statevector
-from configproblem.qaoa_mincost_sat import qaoa_circuit
+from configproblem.qaoa_mincost_sat import get_expectation_statevector
 
 
 def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size):
@@ -21,8 +19,6 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
         :param nqubits: number of qubits
         :param step_size: step size for beta and gamma, value will be doubled for gamma as it's limits are also doubled
     """
-    backend = StatevectorSimulator()
-
     plot_arguments = []
     for hamiltonian in hamiltonians:
         for strategy in strategies:
@@ -49,18 +45,8 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
 
         for i_index, i in enumerate(x_axis):
             for j_index, j in enumerate(y_axis):
-                qc, beta, gamma = qaoa_circuit(hamiltonian, nqubits, 1, measure=False)
-
-                qc = qc.bind_parameters({
-                    beta: i,
-                    gamma: j
-                })
-
-                result = backend.run(qc).result()
-
-                statevector = result.get_statevector()
-                value = compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits,
-                                                                    strategy=arguments["strategy"])
+                expectation_function = get_expectation_statevector(hamiltonian, nqubits, 1)
+                value = expectation_function({"beta": i, "gamma": j})
                 expectation[i_index][j_index] = value
     
                 if expectation_max < value:
