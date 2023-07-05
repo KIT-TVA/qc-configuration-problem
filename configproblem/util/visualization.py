@@ -38,6 +38,7 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
         ax.set_ylabel(r"$\gamma$")
 
         hamiltonian = arguments["hamiltonian"]["hamiltonian"]
+        strategy = arguments["strategy"]
 
         expectation = np.zeros(shape=(len(x_axis), len(y_axis)))
         expectation_max = -sys.maxsize - 1
@@ -45,8 +46,8 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
 
         for i_index, i in enumerate(x_axis):
             for j_index, j in enumerate(y_axis):
-                expectation_function = get_expectation_statevector(hamiltonian, nqubits, 1)
-                value = expectation_function({"beta": i, "gamma": j})
+                expectation_function = get_expectation_statevector(hamiltonian, nqubits, 1, strategy=strategy)
+                value = expectation_function([i, j])
                 expectation[i_index][j_index] = value
     
                 if expectation_max < value:

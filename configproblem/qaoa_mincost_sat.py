@@ -153,7 +153,7 @@ def quantum_statevector(hamiltonian, nqubits, layers, beta_val, gamma_val, ampli
     return probabilities, qc
 
 
-def get_expectation_statevector(hamiltonian, nqubits, nlayers, amplitude_vector=None):
+def get_expectation_statevector(hamiltonian, nqubits, nlayers, amplitude_vector=None, strategy='min'):
     backend = StatevectorSimulator()
 
     def execute_circ(theta):
@@ -167,7 +167,7 @@ def get_expectation_statevector(hamiltonian, nqubits, nlayers, amplitude_vector=
 
         statevector = backend.run(qc).result().get_statevector()
 
-        return compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits, strategy='min')
+        return compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits, strategy=strategy)
 
     return execute_circ
 
