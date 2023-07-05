@@ -136,7 +136,7 @@ def apply_qaoa(hamiltonian, layers=60, n_features=6, shots=256, theta={"beta": 0
 
 
 def quantum_statevector(hamiltonian, nqubits, layers, beta_val, gamma_val, amplitude_vector=None):
-    qc, beta, gamma = qaoa_circuit(hamiltonian, nqubits, layers, amplitude_vector)
+    qc, beta, gamma = qaoa_circuit(hamiltonian, nqubits, layers, amplitude_vector, measure=False)
 
     # Set parameters for qc
     qc = qc.bind_parameters({
