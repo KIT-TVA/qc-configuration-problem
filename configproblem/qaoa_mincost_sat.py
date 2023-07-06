@@ -172,7 +172,7 @@ def get_expectation_statevector(hamiltonian, nqubits, nlayers, amplitude_vector=
     return execute_circ
 
 
-def apply_qaoa_statevector(hamiltonian, layers=60, n_features=6, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector=None, use_optimizer=True):
+def apply_qaoa_statevector(hamiltonian, layers=60, n_features=6, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector=None, use_optimizer=True, print_res=True):
     """
         Applies the QAOA Algorithm for the given hamiltonian in QUSO form.
 
@@ -182,6 +182,7 @@ def apply_qaoa_statevector(hamiltonian, layers=60, n_features=6, theta={"beta": 
         :param dict theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit, used as start value when optimizing
         :param list warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
         :param bool use_optimizer: indicates whether to optimize theta using classical optimizers
+        :param bool print_res: indicates whether the results of the optimization should be printed
     """
     # define expectation function for optimizers
     expectation = get_expectation_statevector(hamiltonian, n_features, layers, warmstart_statevector)
@@ -189,7 +190,8 @@ def apply_qaoa_statevector(hamiltonian, layers=60, n_features=6, theta={"beta": 
     # optimize beta and gamma
     if use_optimizer:
         res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA', tol=1e-12)
-        print(res)
+        if print_res:
+            print(res)
         theta = {"beta": res.x[0], "gamma": res.x[1]}
 
     probabilities, qc = quantum_statevector(hamiltonian, n_features, layers, theta["beta"], theta["gamma"], warmstart_statevector)
