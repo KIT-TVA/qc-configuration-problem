@@ -1,6 +1,6 @@
 import numpy as np
 from qaoa_mincost_sat import apply_qaoa_statevector
-from qubovert.utils import DictArithmetic
+from qubovert.utils import DictArithmetic, QUSOMatrix
 from util.hamiltonian_math import compute_config_energy
 from util.visualization import plot_counts_histogram
 
@@ -9,15 +9,13 @@ valid_configs = ["101010", "101001", "101011", "100110", "100101", "100111", "00
                  "000111", "111010", "111001", "111011", "110110", "110101", "110111"]
 
 
-def deflate_config(hamiltonian, config_str, deflation_factor=300):
+def get_deflation_dict(config_str: str, deflation_factor: float) -> DictArithmetic:
     """
-        Deflates the hamiltonian with the given config.
+        Calculated the deflation matrix as DictArithmetic for a given config and deflation factor.
 
-        :param hamiltonian: the hamiltonian of the optimization problem
-        :param config_str: the config to deflate the hamiltonian with
-        :param deflation_factor: the deflation factor to use
+        :param config_str: the config to calculate the deflation matrix from
+        :param deflation_factor: the deflation factor to multiply the matrix with
     """
-
     config_array = np.array([[0 if s == "0" else 1 for s in config_str]])
     deflation_matrix = np.matmul(config_array.transpose(), config_array)
 
@@ -25,11 +23,22 @@ def deflate_config(hamiltonian, config_str, deflation_factor=300):
     for i, i_val in enumerate(deflation_matrix):
         for j, j_val in enumerate(i_val):
             deflation_dict_arithmetic[(i, j)] = j_val * deflation_factor
+    return deflation_dict_arithmetic
 
-    return hamiltonian + deflation_dict_arithmetic
+
+def deflate_config(hamiltonian: QUSOMatrix, config_str: str, deflation_factor: float) -> QUSOMatrix:
+    """
+        Deflates the hamiltonian with the given config.
+
+        :param hamiltonian: the hamiltonian of the optimization problem
+        :param config_str: the config to deflate the hamiltonian with
+        :param deflation_factor: the deflation factor to use
+    """
+    return hamiltonian + get_deflation_dict(config_str, deflation_factor)
 
 
-def config_prioritization(hamiltonian, output_list_size, deflation_factor_start_value):
+def config_prioritization(hamiltonian: QUSOMatrix, output_list_size: int, deflation_factor_start_value: float)\
+        -> list[str]:
     """
         Creates an ordered list of n configurations with minimal cost (ascending)
         by deflating the hamiltonian with the configs that have already been found.
@@ -38,7 +47,6 @@ def config_prioritization(hamiltonian, output_list_size, deflation_factor_start_
         :param output_list_size: the size of the output list
         :param deflation_factor_start_value: the deflation factor to start with
     """
-
     current_hamiltonian = hamiltonian
     output_list = []
 
