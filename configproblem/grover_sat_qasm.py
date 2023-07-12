@@ -7,140 +7,112 @@ from typing import Dict, List, Tuple
 import numpy as np
 import math
 import os
+
+from configproblem.util.xml_reader import Extended_Modelreader
+from configproblem.util.dimacs_reader import DimacsReader
+from configproblem.util.cnf import CNF
+
+from fragments.quantum_states_qasm import add_all_hadamards
+
 np.set_printoptions(threshold=1e6)
 
-from util.xml_reader import Extended_Modelreader
-from util.dimacs_reader import DimacsReader
-from util.cnf import CNF
 
-from fragments.quantum_states import add_all_hadamards
+def create_not_oracle(ctrl_name: str, ctrl_indices: [int] = None) -> str:
+    """
+        Constructs an oracle for boolean NOT,
+        that is a X gate
+    """
+    if ctrl_indices:
+        return "\n".join([f"x {ctrl_name}[{i}];" for i in ctrl_indices])
+    else:
+        return f"x {ctrl_name};\n"
 
 
-def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:
+def create_and_oracle(ctrl_name: str, ctrl_indices: [int], tar: str) -> str:
     """
         Constructs an oracle for boolean AND,
         that is a multi-controlled X gate
     """
-    inp_reg.qasm()
-    tar_reg = QuantumRegister(bits=[tar])
-    qc = QuantumCircuit(inp_reg, tar_reg)
+    cont_bits = ", ".join([f"{ctrl_name}[{i}]" for i in ctrl_indices])
+    qasm = f"ctrl({len(ctrl_indices)}) @ x {cont_bits}, {tar};\n"
 
-    qc.mcx(inp_reg, tar_reg)
-
-    return qc
+    return qasm
 
 
-def create_or_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:
+def create_or_oracle(ctrl_name: str, ctrl_indices: [int], tar: str) -> str:
     """
         Constructs an oracle for boolean OR,
         from NOT (X) and AND oracles
     """
-    tar_reg = QuantumRegister(bits=[tar])
-    qc = QuantumCircuit(inp_reg, tar_reg)
-
     # Negate all inputs
-    for i in inp_reg:
-        qc.x(i)
-    
-    # Call AND oracle
-    and_oracle = create_and_oracle(inp_reg, tar).to_gate(label="$U_{and}$")
-    qc.append(and_oracle, inp_reg[:]+tar_reg[:])
+    neg_ctrl = create_not_oracle(ctrl_name, ctrl_indices)
 
-    # Inverse negation
-    for i in inp_reg:
-        # Inverse of x is x
-        qc.x(i)
+    # Call AND oracle
+    and_oracle = create_and_oracle(ctrl_name, ctrl_indices, tar)
 
     # Flip target
-    qc.x(tar_reg[0])
-    
-    return qc
+    flip_target = f"x {tar};"
+
+    qasm = "\n".join([neg_ctrl,and_oracle,neg_ctrl,flip_target])
+
+    return qasm
 
 
-def get_clause_qubits(inp_reg: QuantumRegister, clause: List[Tuple[int, bool]]) -> List[Qubit]:
-    """
-        Return a register containing only relevant qubits for a SAT clause
-    """
-
-    clause_qubits:list(Qubit) = []
-
-    for index, _ in clause:
-        clause_qubits.append(inp_reg[index])
-
-    return clause_qubits
-
-
-def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tuple[int, bool]]) -> QuantumCircuit:
+def create_clause_oracle(inp_reg: str, tar: str, clause: List[Tuple[int, bool]]) -> str:
     """
         Create an oracle for a SAT clause
     """
-    tar_reg = QuantumRegister(bits=[tar], name="q_tar")
-    qc = QuantumCircuit(inp_reg, tar_reg)
-
+    qasm = ""
     # Flip all qubits which are negated in the clause
-    for index, positive in clause:
-        if not positive:
-            qc.x(index)
-    
-    
-    # Get Clause Qubits
-    clause_qubits = get_clause_qubits(inp_reg, clause)
-    clause_reg = QuantumRegister(bits=clause_qubits)
-
+    qasm += create_not_oracle(inp_reg, [c[0] for c in filter(lambda c: not c[1], clause)]) + "\n"
     # Create an OR oracle for clause
-    clause_oracle = create_or_oracle(clause_reg, tar).to_gate(label="$U_{or}$")
-    qc.append(clause_oracle, clause_reg[:]+tar_reg[:])
-
+    qasm += create_or_oracle(inp_reg, [c[0] for c in clause], tar) + "\n"
     # Inverse the initial flips
-    for index, positive in clause:
-        if not positive:
-            qc.x(index)
+    qasm += create_not_oracle(inp_reg, [c[0] for c in filter(lambda c: not c[1], clause)]) + "\n"
 
-    return qc
+    return qasm
 
 
-def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]) -> Gate:
+def create_ksat_oracle(inp_reg: str, tar: str, clauses: List[List[Tuple[int, bool]]]) -> str:
     """
         Create an Oracle for a kSAT problem
     """
-    ancilla_reg = AncillaRegister(len(clauses), name="a")
-    tar_reg = QuantumRegister(bits=[tar], name="q_tar")
-    qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg)
+    ancilla_reg = "a"
+
+    qasm = ""
 
     # Compose individual clauses
     for index, clause in enumerate(clauses):
         # Use one ancilla for each clause
-        clause_oracle = create_clause_oracle(inp_reg, ancilla_reg[index], clause).to_gate(label="$U_{clause}$")
-        qc.append(clause_oracle, inp_reg[:]+[ancilla_reg[index]])
-    
+        qasm += create_clause_oracle(inp_reg, f"{ancilla_reg}[{index}]", clause)
+
     # Store the conjugate transpose (inverse) for later qubit cleanup
-    inverse_qc = qc.inverse()
-    
+    # inverse_qc = qc.inverse()
+
     # Use and oracle onto ancilla register and target
-    and_oracle = create_and_oracle(ancilla_reg, tar).to_gate(label="$U_{and}$")
-    qc.append(and_oracle, ancilla_reg[:]+tar_reg[:])
+    qasm += create_and_oracle(ancilla_reg, range(len(clauses)), tar)
 
     # Inverse clause oracles
-    qc = qc.compose(inverse_qc)
+    # qc = qc.compose(inverse_qc)
 
-    return qc
+    return qasm
 
 
-def oracle_converter(oracle_qc: QuantumCircuit, target_idx: int) -> QuantumCircuit:
+def oracle_converter(tar: str) -> (str,str):
     """
         Convert a bit-flip into a phase oracle
     """
-    phase_qc = oracle_qc.copy()
+    prepend = f"""
+x {tar};
+h {tar};
+    """
 
-    qc_conv = QuantumCircuit(1, name="$U_{phase}$")
-    qc_conv.x(0)
-    qc_conv.h(0)
-    # Prepend the phase transformation
-    phase_qc = phase_qc.compose(qc_conv, qubits=[target_idx], front=True)
-    # Append the phase transformation 
-    phase_qc = phase_qc.compose(qc_conv.inverse(), qubits=[target_idx])
+    append = f"""
+h {tar};
+x {tar};
+    """
 
-    return phase_qc
+    return prepend, append
 
 
 def print_matrix(circuit):
@@ -149,10 +121,11 @@ def print_matrix(circuit):
     """
     ppod = Operator(circuit).data
     print("Values in Operator", set(ppod.flatten()))
-    print(f"Oracle Shape: {ppod.shape}", f"Elements;; nonzero:{np.count_nonzero(ppod)}, 1: {np.count_nonzero(ppod.real > 0.99)}, -1: {np.count_nonzero(ppod.real < -0.99)}")
+    print(f"Oracle Shape: {ppod.shape}",
+          f"Elements;; nonzero:{np.count_nonzero(ppod)}, 1: {np.count_nonzero(ppod.real > 0.99)}, -1: {np.count_nonzero(ppod.real < -0.99)}")
     print("Diagonal values: ", [round(ppod[x][x].real) for x in range(len(ppod[0]))])
     print(ppod)
-    
+
 
 def print_diagonal_analysis(circuit, measurements=None):
     """
@@ -166,15 +139,15 @@ def print_diagonal_analysis(circuit, measurements=None):
     od = Operator(circuit).data
     diagonal_values = [round(od[x][x].real) for x in range(len(od[0]))]
     bspace_padding = math.ceil(math.log(len(diagonal_values), 2))
-    
+
     if measurements is not None:
-        measurement_threshold = max(measurements.values()) / (2**2)
-        measurements = {key:val for key, val in measurements.items() if val > measurement_threshold}
-    
+        measurement_threshold = max(measurements.values()) / (2 ** 2)
+        measurements = {key: val for key, val in measurements.items() if val > measurement_threshold}
+
     for i, v in enumerate(diagonal_values):
-        vs = " 1" if  v == 1 else "-1"
+        vs = " 1" if v == 1 else "-1"
         state_str = format(i, f"0{bspace_padding}b")
-        
+
         # when measurements are available, check if a phase flipped state may be good
         state_marking = ""
         if measurements is not None and v == -1:
@@ -187,11 +160,11 @@ def print_diagonal_analysis(circuit, measurements=None):
                     state_marking = "!AMBIGUOUS!"
                 else:
                     state_marking = "invalid"
-        
+
         print(vs, state_str, state_marking)
 
 
-def init_sat_circuit(problem):
+def init_sat_circuit(problem: List[List[Tuple[int, bool]]]) -> (int, int, str):
     """
         Returns calculated number of qubits, created circuit
     """
@@ -201,84 +174,84 @@ def init_sat_circuit(problem):
     num_clauses = len(problem)
     num_qubits = num_vars + num_clauses + 1
 
+    qasm = f"""
+OPENQASM 3.0;
+include "stdgates.inc";
+"""
+
     # Init registers and qubits
-    inp_reg = QuantumRegister(num_vars, name="q_in")
-    tar = Qubit()
-    tar_reg = QuantumRegister(bits=[tar], name="q_tar")
-    ancilla_reg = AncillaRegister(num_clauses, name="a")
+    c_reg = "c_out"
+    inp_reg = "q_in"
+    tar = "q_tar"
+    ancilla_reg = "a"
+    qasm += f"""
+bit [{num_vars}] {c_reg};
+qubit[{num_vars}] {inp_reg};
+qubit {tar};
+qubit [{num_clauses}] a;
+"""
 
+    prep,app = oracle_converter(tar)
+    oracle = create_ksat_oracle(inp_reg, tar, problem)
+
+    qasm += add_all_hadamards(inp_reg)
     # Create oracle for this SAT problem instance
-    qc_oracle = QuantumCircuit(num_qubits)
-    qc_oracle.append(create_ksat_oracle(inp_reg, tar, problem).to_gate(label="$U_{ksat}$"), qc_oracle.qubits)
-    qc_phase_oracle = oracle_converter(qc_oracle, len(inp_reg))
+    qasm += prep + oracle + app
 
-    # Construct main quantum circuit
-    c_regs = ClassicalRegister(num_vars, 'c')
-    main_qc = QuantumCircuit(inp_reg, tar_reg, ancilla_reg, c_regs)
+    return num_vars, num_qubits, oracle, qasm
 
-    # Create uniform superposition
-    main_qc = add_all_hadamards(main_qc, range(num_vars))
 
-    return (num_vars, num_qubits, main_qc, qc_oracle, qc_phase_oracle)
-
-def diffuser(nqubits):
-    qc = QuantumCircuit(nqubits)
+def diffuser(inp_reg : str, num_qubits: int) -> str:
     # Apply transformation |s> -> |00..0> (H-gates)
-    for qubit in range(nqubits):
-        qc.h(qubit)
+    qasm = add_all_hadamards(inp_reg)
     # Apply transformation |00..0> -> |11..1> (X-gates)
-    for qubit in range(nqubits):
-        qc.x(qubit)
+    qasm += create_not_oracle(inp_reg)
     # Do multi-controlled-Z gate
-    qc.h(nqubits-1)
-    qc.mct(list(range(nqubits-1)), nqubits-1)  # multi-controlled-toffoli
-    qc.h(nqubits-1)
-    # Apply transformation |11..1> -> |00..0>
-    for qubit in range(nqubits):
-        qc.x(qubit)
-    # Apply transformation |00..0> -> |s>
-    for qubit in range(nqubits):
-        qc.h(qubit)
-    # We will return the diffuser as a gate
-    U_s = qc.to_gate()
-    U_s.name = "U$_{Diffuser}$"
-    return U_s
+    qasm += f"ctrl({num_qubits-1}) @ z {', '.join([f'{inp_reg}['+str(i)+']' for i in range(num_qubits-1)])}, {inp_reg}[{num_qubits-1}];\n"
 
-def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit]:
+    # qasm += add_all_hadamards(inp_reg, range(num_qubits-1))
+    # qc.mct(list(range(nqubits - 1)), nqubits - 1)  # multi-controlled-toffoli
+    # add_all_hadamards(inp_reg, range(num_qubits-1))
+
+    # Apply transformation |11..1> -> |00..0>
+    qasm += create_not_oracle(inp_reg)
+    # Apply transformation |00..0> -> |s>
+    qasm += add_all_hadamards(inp_reg)
+    return qasm
+
+
+def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str):
     """
         Creates an circuit for the SAT problem instance and applies Grover k times
     """
     # Init sat circuit
-    num_inp_qubits, num_qubits, main_qc, qc_oracle, qc_phase_oracle = init_sat_circuit(problem)
+    num_inp_qubits, num_qubits, phase_oracle_gate, main_qasm = init_sat_circuit(problem)
 
     # Add grover diffuser
-    diff = diffuser(num_inp_qubits)
+    diff = diffuser("q_in", num_inp_qubits)
 
     # Grover loop: add the oracle and diffusor step k times
-    phase_oracle_gate = qc_phase_oracle.to_gate(label='U$_{oracle}$')
-    register_map = list(range(num_inp_qubits))
     for i in range(k):
-        main_qc.append(phase_oracle_gate, range(num_qubits))
-        main_qc = main_qc.compose(diff, register_map)
-        
+        main_qasm += phase_oracle_gate
+        main_qasm += diff
+
     # Add measurements of input qubits
-    main_qc.measure(register_map, register_map)
-#     main_qc.measure_all()
-    
-    return (main_qc, qc_oracle)
+    main_qasm += "c_out = measure q_in;\n"
+
+    return main_qasm, phase_oracle_gate
 
 
 def calc_statevector_from(counts, width=None):
-    threshold = max(counts.values())/1e2 # one order of magnitude below the most often measured results
+    threshold = max(counts.values()) / 1e2  # one order of magnitude below the most often measured results
     count_vector = []
-    shots = 0 # measured shots
-    
+    shots = 0  # measured shots
+
     # derive width from counts if not given
     if width is None:
         width = len(list(counts.keys()))
-    
+
     # create statevector by using counts
-    for i in range(2**width):
+    for i in range(2 ** width):
         b = format(i, f"0{width}b")
         c = counts.get(b)
         # print(i, b, c)
@@ -287,11 +260,11 @@ def calc_statevector_from(counts, width=None):
         else:
             count_vector.append(c)
             shots += c
-    
+
     # normalize vector
     count_arr = np.array(count_vector)
     norm_vector = count_arr / count_arr.sum()
-    
+
     # sqrt vector
     statevector = np.sqrt(norm_vector)
     return statevector
@@ -301,7 +274,7 @@ def create_grover_for_model(rel_path, k=1):
     # load given model
     current_folder = os.path.dirname(os.path.realpath(__file__))
     some_model_path = os.path.join(current_folder, rel_path)
-    
+
     if rel_path.split('.')[-1] == "xml":
         reader = Extended_Modelreader()
         feature_model, constraints = reader.readModel(some_model_path)
@@ -309,14 +282,14 @@ def create_grover_for_model(rel_path, k=1):
         feature_cnf = feature_model.build_cnf(constraints)
         print(feature_cnf)
         problem = feature_cnf.to_problem()
-    
+
     elif rel_path.split('.')[-1] in ["dimacs", "cnf"]:
         rd = DimacsReader()
         rd.fromFile(some_model_path)
         problem = CNF().from_dimacs(rd).to_problem()
-    
+
     # create grover circuit
-    problem_qc, problem_oracle = create_ksat_grover(problem, k) # Create the circuit
+    problem_qc, problem_oracle = create_ksat_grover(problem, k)  # Create the circuit
     return problem_qc
 
 
@@ -327,12 +300,12 @@ def collect_circuit_info(circuit, backend="aer_simulator", shots=100, simulate=F
     transpiled_grover_circuit = transpile(circuit, backend=simulator)
     info['depth'] = transpiled_grover_circuit.depth()
     info['width'] = transpiled_grover_circuit.num_qubits
-    
-    #print(f"Circuit depth: {transpiled_grover_circuit.depth()}gates - width: {transpiled_grover_circuit.num_qubits}qubits")
-    
+
+    # print(f"Circuit depth: {transpiled_grover_circuit.depth()}gates - width: {transpiled_grover_circuit.num_qubits}qubits")
+
     # try to run/simulate
     if simulate:
         results = simulator.run(transpiled_grover_circuit, shots=shots).result()
         info['counts'] = results.get_counts()
-    
+
     return info

@@ -7,13 +7,13 @@ from typing import Dict, List, Tuple
 import numpy as np
 import math
 import os
+from configproblem.util.xml_reader import Extended_Modelreader
+from configproblem.util.dimacs_reader import DimacsReader
+from configproblem.util.cnf import CNF
+
+from configproblem.fragments.quantum_states import add_all_hadamards
 np.set_printoptions(threshold=1e6)
 
-from util.xml_reader import Extended_Modelreader
-from util.dimacs_reader import DimacsReader
-from util.cnf import CNF
-
-from fragments.quantum_states import add_all_hadamards
 
 
 def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:
@@ -242,6 +242,7 @@ def diffuser(nqubits):
     U_s = qc.to_gate()
     U_s.name = "U$_{Diffuser}$"
     return U_s
+
 
 def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit]:
     """
