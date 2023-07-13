@@ -98,7 +98,7 @@ def create_clause_oracle(inp_reg: QuantumRegister, tar: Qubit, clause: List[Tupl
     return qc
 
 
-def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]) -> Gate:
+def create_ksat_oracle(inp_reg: QuantumRegister, tar: Qubit, clauses: List[List[Tuple[int, bool]]]) -> QuantumCircuit:
     """
         Create an Oracle for a kSAT problem
     """
@@ -218,9 +218,10 @@ def init_sat_circuit(problem):
     # Create uniform superposition
     main_qc = add_all_hadamards(main_qc, range(num_vars))
 
-    return (num_vars, num_qubits, main_qc, qc_oracle, qc_phase_oracle)
+    return num_vars, num_qubits, main_qc, qc_oracle, qc_phase_oracle
 
-def diffuser(nqubits):
+
+def diffuser(nqubits) -> Gate:
     qc = QuantumCircuit(nqubits)
     # Apply transformation |s> -> |00..0> (H-gates)
     for qubit in range(nqubits):
@@ -257,12 +258,15 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[Quantu
     # Grover loop: add the oracle and diffusor step k times
     phase_oracle_gate = qc_phase_oracle.to_gate(label='U$_{oracle}$')
     register_map = list(range(num_inp_qubits))
+    main_qc.barrier()
     for i in range(k):
         main_qc.append(phase_oracle_gate, range(num_qubits))
+        main_qc.barrier()
         main_qc = main_qc.compose(diff, register_map)
+        main_qc.barrier()
         
     # Add measurements of input qubits
-    main_qc.measure(register_map, register_map)
+    #main_qc.measure(register_map, register_map)
 #     main_qc.measure_all()
     
     return (main_qc, qc_oracle)

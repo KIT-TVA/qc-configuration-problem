@@ -33,7 +33,7 @@ def create_and_oracle(ctrl_name: str, ctrl_indices: [int], tar: str) -> str:
         Constructs an oracle for boolean AND,
         that is a multi-controlled X gate
     """
-    cont_bits = ", ".join([f"{ctrl_name}[{i}]" for i in ctrl_indices])
+    cont_bits = ", ".join([f"{ctrl_name}[{i}]" for i in ctrl_indices[:]])
     qasm = f"ctrl({len(ctrl_indices)}) @ x {cont_bits}, {tar};\n"
 
     return qasm
@@ -80,7 +80,6 @@ def create_ksat_oracle(inp_reg: str, tar: str, clauses: List[List[Tuple[int, boo
     ancilla_reg = "a"
 
     qasm = ""
-
     # Compose individual clauses
     for index, clause in enumerate(clauses):
         # Use one ancilla for each clause
@@ -88,17 +87,19 @@ def create_ksat_oracle(inp_reg: str, tar: str, clauses: List[List[Tuple[int, boo
 
     # Store the conjugate transpose (inverse) for later qubit cleanup
     # inverse_qc = qc.inverse()
+    inverse_qasm = "\n".join(qasm.split("\n")[::-1])
 
     # Use and oracle onto ancilla register and target
     qasm += create_and_oracle(ancilla_reg, range(len(clauses)), tar)
 
     # Inverse clause oracles
     # qc = qc.compose(inverse_qc)
+    qasm += inverse_qasm
 
     return qasm
 
 
-def oracle_converter(tar: str) -> (str,str):
+def oracle_converter(qasm: str, tar: str) -> (str,str):
     """
         Convert a bit-flip into a phase oracle
     """
@@ -112,7 +113,7 @@ h {tar};
 x {tar};
     """
 
-    return prepend, append
+    return prepend + qasm + append
 
 
 def print_matrix(circuit):
@@ -164,7 +165,7 @@ def print_diagonal_analysis(circuit, measurements=None):
         print(vs, state_str, state_marking)
 
 
-def init_sat_circuit(problem: List[List[Tuple[int, bool]]]) -> (int, int, str):
+def init_sat_circuit(problem: List[List[Tuple[int, bool]]]) -> (int, int, str, str, str, str):
     """
         Returns calculated number of qubits, created circuit
     """
@@ -180,38 +181,33 @@ include "stdgates.inc";
 """
 
     # Init registers and qubits
-    c_reg = "c_out"
+    c_reg = "c"
     inp_reg = "q_in"
     tar = "q_tar"
     ancilla_reg = "a"
     qasm += f"""
-bit [{num_vars}] {c_reg};
 qubit[{num_vars}] {inp_reg};
-qubit {tar};
-qubit [{num_clauses}] a;
+qubit[1] {tar};
+qubit[{num_clauses}] {ancilla_reg};
+bit [{num_vars}] {c_reg};
 """
 
-    prep,app = oracle_converter(tar)
+    init = qasm
+
     oracle = create_ksat_oracle(inp_reg, tar, problem)
+    phase_oracle = oracle_converter(oracle, tar)
 
     qasm += add_all_hadamards(inp_reg)
-    # Create oracle for this SAT problem instance
-    qasm += prep + oracle + app
-
-    return num_vars, num_qubits, oracle, qasm
+    return num_vars, num_qubits, init, qasm, oracle, phase_oracle
 
 
-def diffuser(inp_reg : str, num_qubits: int) -> str:
+def diffuser(inp_reg: str, num_qubits: int) -> str:
     # Apply transformation |s> -> |00..0> (H-gates)
     qasm = add_all_hadamards(inp_reg)
     # Apply transformation |00..0> -> |11..1> (X-gates)
     qasm += create_not_oracle(inp_reg)
     # Do multi-controlled-Z gate
     qasm += f"ctrl({num_qubits-1}) @ z {', '.join([f'{inp_reg}['+str(i)+']' for i in range(num_qubits-1)])}, {inp_reg}[{num_qubits-1}];\n"
-
-    # qasm += add_all_hadamards(inp_reg, range(num_qubits-1))
-    # qc.mct(list(range(nqubits - 1)), nqubits - 1)  # multi-controlled-toffoli
-    # add_all_hadamards(inp_reg, range(num_qubits-1))
 
     # Apply transformation |11..1> -> |00..0>
     qasm += create_not_oracle(inp_reg)
@@ -225,20 +221,23 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str):
         Creates an circuit for the SAT problem instance and applies Grover k times
     """
     # Init sat circuit
-    num_inp_qubits, num_qubits, phase_oracle_gate, main_qasm = init_sat_circuit(problem)
+    num_inp_qubits, num_qubits, init, main_qasm, qasm_oracle, qasm_phase_oracle = init_sat_circuit(problem)
 
     # Add grover diffuser
     diff = diffuser("q_in", num_inp_qubits)
 
     # Grover loop: add the oracle and diffusor step k times
+    main_qasm += "barrier; \n"
     for i in range(k):
-        main_qasm += phase_oracle_gate
+        main_qasm += qasm_phase_oracle
+        main_qasm += "barrier; \n"
         main_qasm += diff
+        main_qasm += "barrier; \n"
 
     # Add measurements of input qubits
-    main_qasm += "c_out = measure q_in;\n"
+    #main_qasm += "c = measure q_in;\n"
 
-    return main_qasm, phase_oracle_gate
+    return main_qasm, init, qasm_phase_oracle
 
 
 def calc_statevector_from(counts, width=None):

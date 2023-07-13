@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit
 
 
-def add_all_hadamards(qc, nqubits):
+def add_all_hadamards(qc, nqubits) -> QuantumCircuit:
     """
         Apply an H-gate to all 'qubits' in qc
     """
