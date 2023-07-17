@@ -1,9 +1,12 @@
 from qiskit import QuantumCircuit, Aer, transpile
 from qiskit.circuit import Parameter
+from qiskit.result import Counts
 from scipy.optimize import minimize
 import math
 
 from qubovert.utils import DictArithmetic
+
+from configproblem.fragments.quantum_states import superposition_circuit
 
 
 def k_rz_gate(qc: QuantumCircuit, qubits: list, gate_parameter: float) -> QuantumCircuit:
@@ -78,7 +81,7 @@ def qaoa_circuit(hamiltonian: DictArithmetic, nqubits: int, nlayers: int, amplit
         qc.initialize(amplitude_vector)
     else:
         # equal superposition
-        qc = QuantumCircuit(nqubits)
+        qc = superposition_circuit(nqubits)
 
     qg_mixer, beta = mixer_circuit(nqubits)
     qg_problem, gamma = problem_circuit(hamiltonian, nqubits)
@@ -148,7 +151,7 @@ def hamiltonian_strategy_min(hamiltonian, counts):
     return min_energy
 
 
-def compute_hamiltonian_energy(hamiltonian: DictArithmetic, counts: dict, strategy: str = 'top') -> float:
+def compute_hamiltonian_energy(hamiltonian: DictArithmetic, counts: Counts, strategy: str = 'top') -> float:
     """
         Compute the energy state of a hamiltonian from measurements.
 
