@@ -8,17 +8,16 @@ from configproblem import grover_sat as gs
 # = a!c v b!c
 # = 110 v 100 v 010
 problem = [[(0, True), (1, True)], [(2, False)]]
+model = "../benchmarks/featureide-examples/sandwich.dimacs"
 
+qasm = gsq.create_grover_for_model(model)
+print("created qasm with depth:")
+print(qasm)
 
-# new
-print("<================ New ================>")
-_, _, _, qc = gsq.init_sat_circuit(problem)
-qc = parse(qc)
-print(qc)
-print(qc.qasm())
-
-# old
-print("<================ Old ================>")
-_, _, _, _, qc = gs.init_sat_circuit(problem)
-print(qc)
-print(qc.qasm())
+qc = gs.create_grover_for_model(model)
+print("created qiskit with depth:")
+#qc_new = parse(qasm)
+print(qc.depth())
+# print(gsq.collect_circuit_info(qc))
+# print(gsq.collect_circuit_info(qc_new))
+# print(qc_new.qasm())

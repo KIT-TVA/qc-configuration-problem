@@ -17,12 +17,13 @@ from fragments.quantum_states_qasm import add_all_hadamards
 np.set_printoptions(threshold=1e6)
 
 
+
 def create_not_oracle(ctrl_name: str, ctrl_indices: [int] = None) -> str:
     """
         Constructs an oracle for boolean NOT,
         that is a X gate
     """
-    if ctrl_indices:
+    if ctrl_indices is not None:
         return "\n".join([f"x {ctrl_name}[{i}];" for i in ctrl_indices])
     else:
         return f"x {ctrl_name};\n"
@@ -169,6 +170,7 @@ def init_sat_circuit(problem: List[List[Tuple[int, bool]]]) -> (int, int, str, s
     """
         Returns calculated number of qubits, created circuit
     """
+    print("init")
     # Number of input qubits
     num_vars = len(set([statement[0] for clause in problem for statement in clause]))
     # Number of ancialla qubits
@@ -216,7 +218,7 @@ def diffuser(inp_reg: str, num_qubits: int) -> str:
     return qasm
 
 
-def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str):
+def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str, str, str):
     """
         Creates an circuit for the SAT problem instance and applies Grover k times
     """
@@ -227,17 +229,15 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str):
     diff = diffuser("q_in", num_inp_qubits)
 
     # Grover loop: add the oracle and diffusor step k times
-    main_qasm += "barrier; \n"
     for i in range(k):
         main_qasm += qasm_phase_oracle
-        main_qasm += "barrier; \n"
         main_qasm += diff
-        main_qasm += "barrier; \n"
 
+    main_qasm_pre_meas = main_qasm
     # Add measurements of input qubits
-    #main_qasm += "c = measure q_in;\n"
+    main_qasm += "c = measure q_in;\n"
 
-    return main_qasm, init, qasm_phase_oracle
+    return main_qasm, init, qasm_phase_oracle, main_qasm_pre_meas
 
 
 def calc_statevector_from(counts, width=None):
@@ -287,8 +287,9 @@ def create_grover_for_model(rel_path, k=1):
         rd.fromFile(some_model_path)
         problem = CNF().from_dimacs(rd).to_problem()
 
+    print("created model")
     # create grover circuit
-    problem_qc, problem_oracle = create_ksat_grover(problem, k)  # Create the circuit
+    problem_qc, _, _, _ = create_ksat_grover(problem, k)  # Create the circuit
     return problem_qc
 
 
