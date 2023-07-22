@@ -83,11 +83,13 @@ def strategy_projection_deflation(hamiltonian: QUSOMatrix, nqubits: int, output_
                                   deflation_factor_start_value: float, debug_output: bool = False) -> list[str]:
     """
         Calculates the output list for the given hamiltonian using the projection deflation strategy.
+        Projection deflation eliminates the contribution of a state x from the hamiltonian
+        by projection the hamiltonian onto the subspace orthogonal to x.
 
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
-        :param deflation_factor_start_value: the start value for the deflation factor
+        :param deflation_factor_start_value: the start value for the deflation factor, gets doubled if it's too low
         :param debug_output: whether to print debug output
     """
     current_hamiltonian = hamiltonian
@@ -141,11 +143,14 @@ def strategy_variational_quantum_deflation(hamiltonian: QUSOMatrix, nqubits:int,
         -> list[str]:
     """
         Calculates the output list for the given hamiltonian using the variational quantum deflation strategy.
+        Variational quantum deflation eliminates the contribution of a state x from the hamiltonian
+        by iteratively optimizing a cost function that is adjusted
+        by introducing an overlap term with all previously found eigenstates.
 
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
-        :param deflation_factor_start_value: the start value for the deflation factor
+        :param deflation_factor_start_value: the start value for the deflation factor, gets doubled if it's too low
         :param debug_output: whether to print debug output
     """
     current_hamiltonian = hamiltonian
