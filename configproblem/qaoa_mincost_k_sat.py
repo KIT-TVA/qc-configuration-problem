@@ -1,12 +1,12 @@
 from qiskit import QuantumCircuit, Aer, transpile
 from qiskit.circuit import Parameter
-from qiskit.result import Counts
 from scipy.optimize import minimize
 import math
 
 from qubovert.utils import DictArithmetic
 
 from configproblem.fragments.quantum_states import superposition_circuit
+from configproblem.util.hamiltonian_math import compute_hamiltonian_energy
 
 
 def k_rz_gate(qc: QuantumCircuit, qubits: list, gate_parameter: float) -> QuantumCircuit:
@@ -95,78 +95,6 @@ def qaoa_circuit(hamiltonian: DictArithmetic, nqubits: int, nlayers: int, amplit
     if measure:
         qc.measure_all()
     return qc, gamma, beta
-
-
-def compute_config_energy(hamiltonian: DictArithmetic, config: list) -> float:
-    """
-        Computes the energy of a configuration for a given hamiltonian
-
-        :param hamiltonian: The hamiltonian to compute the energy for
-        :param config: The configuration to compute the energy for
-    """
-    energy = 0
-    for key, factor in hamiltonian.items():
-        term_energy = factor
-        for qubit in key:
-            term_energy *= config[qubit]
-        energy += term_energy
-    return energy
-
-
-def hamiltonian_strategy_top(hamiltonian, counts):
-    """
-        Computes the energy of the configuration that was measured the most for the given hamiltonian
-    """
-    # take the config that was measured most often
-    config_str = max(counts, key=counts.get)
-    # convert the 0/1 feature string to ising integers
-    config = [-1 if s == "0" else 1 for s in config_str]
-    return compute_config_energy(hamiltonian, config)
-
-
-def hamiltonian_strategy_average(hamiltonian, counts):
-    """
-        Computes the average energy across the entire measurement for the given hamiltonian
-    """
-    average_energy = 0
-    for config_str in counts.keys():
-        # convert the 0/1 feature string to ising integers
-        config = [-1 if s == "0" else 1 for s in config_str]
-        energy = compute_config_energy(hamiltonian, config)*counts.get(config_str)
-        average_energy += energy
-    average_energy /= counts.shots()
-    return average_energy
-
-
-def hamiltonian_strategy_min(hamiltonian, counts):
-    """
-        Finds the _measured_ configuration with the least energy and returns its value.
-    """
-    min_energy = float('inf')
-    for config_str in counts.keys():
-        # convert the 0/1 feature string to ising integers
-        config = [-1 if s == "0" else 1 for s in config_str]
-        energy = compute_config_energy(hamiltonian, config)
-        min_energy = energy if energy < min_energy else min_energy
-    return min_energy
-
-
-def compute_hamiltonian_energy(hamiltonian: DictArithmetic, counts: Counts, strategy: str = 'top') -> float:
-    """
-        Compute the energy state of a hamiltonian from measurements.
-
-        :param hamiltonian: the hamiltonian (QUBO) describing the system
-        :param counts: measurement results for a quantum system for the hamiltonian
-        :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
-    """
-    if strategy == 'min':
-        return hamiltonian_strategy_min(hamiltonian, counts)
-    elif strategy == 'avg':
-        return hamiltonian_strategy_average(hamiltonian, counts)
-    elif strategy == 'top':
-        return hamiltonian_strategy_top(hamiltonian, counts)
-    else:
-        raise RuntimeError(f"Unsupported strategy: {strategy}")
 
 
 def quantum(hamiltonian, nqubits, layers, beta_val, gamma_val, shots=512, amplitude_vector=None):

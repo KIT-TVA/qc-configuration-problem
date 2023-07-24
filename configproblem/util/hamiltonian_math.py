@@ -1,4 +1,5 @@
 import numpy as np
+from qubovert import spin_var
 from qubovert.utils import DictArithmetic
 
 
