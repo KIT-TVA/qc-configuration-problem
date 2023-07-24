@@ -1,19 +1,25 @@
 import math
 import sys
+from typing import Callable
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from qiskit.result import Counts
+from qubovert.utils import DictArithmetic
 from scipy.stats import gaussian_kde
 from configproblem.util.hamiltonian_math import compute_config_energy
-from configproblem.qaoa_mincost_sat import get_expectation_statevector
+from configproblem.qaoa.qaoa_application import get_expectation_statevector
 
 
-def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size):
+def plot_beta_gamma_cost_landscape(problem_circuit: Callable, hamiltonians: list[dict], strategies: list[str],
+                                   nqubits: int, step_size: float):
     """
         Plots the cost landscape for different values of beta and gamma
         for a given list of hamiltonians and list of strategies.
 
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonians: list of hamiltonians to plot
         :param strategies: list of strategies to plot
         :param nqubits: number of qubits
@@ -46,8 +52,9 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
 
         for i_index, i in enumerate(x_axis):
             for j_index, j in enumerate(y_axis):
-                expectation_function = get_expectation_statevector(hamiltonian, nqubits, 1, strategy=strategy)
-                value = expectation_function([i, j])
+                expectation_function = get_expectation_statevector(problem_circuit, hamiltonian, nqubits, 1,
+                                                                   strategy=strategy)
+                value = expectation_function([j, i])
                 expectation[i_index][j_index] = value
     
                 if expectation_max < value:
@@ -62,7 +69,7 @@ def plot_beta_gamma_cost_landscape(hamiltonians, strategies, nqubits, step_size)
     plt.show()
 
 
-def plot_f_mu_cost_landscape(hamiltonian, nqubits):
+def plot_f_mu_cost_landscape(hamiltonian: DictArithmetic, nqubits: int):
     """
         Plots the cost landscape for f and mu for a given hamiltonian where f is the function for the config energy
         and mu is the average difference in energy between the current config and all configs with hamming distance 1.
@@ -119,7 +126,7 @@ def plot_f_mu_cost_landscape(hamiltonian, nqubits):
     plt.show()
 
 
-def plot_counts_histogram(counts, best_config, valid_configs):
+def plot_counts_histogram(counts: Counts, best_config: str, valid_configs: list[str]):
     """
         Plots a histogram of the counts for each possible config.
         The best config is highlighted in red and valid configs are highlighted in brown.
