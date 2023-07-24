@@ -25,8 +25,7 @@ def mixer_circuit(nqubits: int) -> tuple[QuantumCircuit, Parameter]:
 
 
 def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                 amplitude_vector: list[float] = None, measure: bool = True)\
-        -> tuple[QuantumCircuit, Parameter, Parameter]:
+                 amplitude_vector: list = None, measure: bool = True) -> tuple[QuantumCircuit, Parameter, Parameter]:
     """
         Creates a QAOA circuit for the given hamiltonian
 
@@ -60,7 +59,7 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
 
 
 def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int, beta_val: float,
-            gamma_val: float, shots: int = 512, amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
+            gamma_val: float, shots: int = 512, amplitude_vector=None) -> tuple[Counts, QuantumCircuit]:
     qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector)
 
     # Set parameters for qc
@@ -79,7 +78,7 @@ def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int
 
 
 def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                    shots: int = 128, amplitude_vector: list[float] = None, strategy: str = 'avg') -> Callable:
+                    shots: int = 128, amplitude_vector=None) -> Callable:
     backend = Aer.get_backend('qasm_simulator')
     backend.shots = shots
 
@@ -93,38 +92,36 @@ def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqub
         })
 
         counts = backend.run(qc, nshots=shots).result().get_counts()
-        return compute_hamiltonian_energy(hamiltonian, counts, strategy=strategy)
+        return compute_hamiltonian_energy(hamiltonian, counts, strategy='min')
 
     return execute_circ
 
 
 def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60, n_features: int = 6,
-               shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: list[float] = None,
-               strategy: str = 'avg', use_optimizer: bool = True, print_res: bool = True)\
-        -> tuple[Counts, QuantumCircuit]:
+               shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: bool = None,
+               use_optimizer: bool = True) -> tuple[Counts, QuantumCircuit]:
     """
-        Applies the QAOA Algorithm for the given problem hamiltonian in QUSO/PUSO form.
+        Applies the QAOA Algorithm for the given problem hamiltonian in QUSO form.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian used for creating the quantum circuit
                             and determining the expected config cost
-        :param layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
-        :param n_features: the number of independent variables in the input hamiltonian
-        :param shots: the number of shots used in a simulator run of the QAOA quantum circuit
-        :param theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
-                      used as start value when optimizing
-        :param warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
-        :param strategy: the strategy used to compute the expected config cost
-        :param use_optimizer: indicates whether to optimize theta using classical optimizers
-        :param print_res: indicates whether the results of the optimization should be printed
+        :param int layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
+        :param int n_features: the number of independent variables in the input hamiltonian
+        :param int shots: the number of shots used in a simulator run of the QAOA quantum circuit
+        :param dict theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
+                           used as start value when optimizing
+        :param list warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
+        :param bool use_optimizer: indicates whether to optimize theta using classical optimizers
     """
     # define expectation function for optimizers
-    expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots, warmstart_statevector,
-                                  strategy=strategy)
+    expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots, warmstart_statevector)
 
     # optimize beta and gamma
     if use_optimizer:
-        theta = optimize_parameters(theta, expectation, print_res)
+        res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA', tol=1e-12)
+        print(res)
+        theta = {"beta": res.x[0], "gamma": res.x[1]}
 
         # run qaoa circuit with parameters in theta
     counts, qc = quantum(problem_circuit, hamiltonian, n_features, layers, theta["beta"], theta["gamma"], shots,
@@ -133,7 +130,7 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
 
 
 def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
-                        beta_val: float, gamma_val: float, amplitude_vector: list[float] = None)\
+                        beta_val: float, gamma_val: float, amplitude_vector: bool = None)\
         -> tuple[list[float], QuantumCircuit]:
     qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector, measure=False)
 
@@ -153,7 +150,7 @@ def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, 
 
 
 def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                                amplitude_vector: list[float] = None, strategy: str = 'avg') -> Callable:
+                                amplitude_vector: bool = None, strategy: str = 'min') -> Callable:
     backend = StatevectorSimulator()
 
     def execute_circ(theta):
@@ -174,47 +171,32 @@ def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArit
 
 def apply_qaoa_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60,
                            n_features: int = 6, theta={"beta": 0.01, "gamma": -0.01},
-                           warmstart_statevector: list[float] = None, strategy: str = 'avg', use_optimizer: bool = True,
-                           print_res: bool = True) -> tuple[list[float], QuantumCircuit]:
+                           warmstart_statevector: bool = None, use_optimizer: bool = True, print_res: bool = True)\
+        -> tuple[list[float], QuantumCircuit]:
     """
-        Applies the QAOA Algorithm for the given hamiltonian in QUSO/PUSO form.
+        Applies the QAOA Algorithm for the given hamiltonian in QUSO form.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian used for creating the quantum circuit
                             and determining the expected config cost
-        :param layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
-        :param n_features: the number of independent variables in the input hamiltonian
-        :param theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
-                      used as start value when optimizing
-        :param warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
-        :param strategy: the strategy used to compute the expected config cost
-        :param use_optimizer: indicates whether to optimize theta using classical optimizers
-        :param print_res: indicates whether the results of the optimization should be printed
+        :param int layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
+        :param int n_features: the number of independent variables in the input hamiltonian
+        :param dict theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
+                           used as start value when optimizing
+        :param list warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
+        :param bool use_optimizer: indicates whether to optimize theta using classical optimizers
+        :param bool print_res: indicates whether the results of the optimization should be printed
     """
     # define expectation function for optimizers
-    expectation = get_expectation_statevector(problem_circuit, hamiltonian, n_features, layers, warmstart_statevector,
-                                              strategy=strategy)
+    expectation = get_expectation_statevector(problem_circuit, hamiltonian, n_features, layers, warmstart_statevector)
 
     # optimize beta and gamma
     if use_optimizer:
-        theta = optimize_parameters(theta, expectation, print_res)
+        res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA', tol=1e-12)
+        if print_res:
+            print(res)
+        theta = {"beta": res.x[0], "gamma": res.x[1]}
 
     probabilities, qc = quantum_statevector(problem_circuit, hamiltonian, n_features, layers, theta["beta"],
                                             theta["gamma"], warmstart_statevector)
     return probabilities, qc
-
-
-def optimize_parameters(theta: dict, expectation: Callable, print_res: bool) -> dict:
-    """
-        Optimizes the parameters beta and gamma of the QAOA circuit using classical optimizers.
-
-        :param theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
-                      used as start value when optimizing
-        :param expectation: the expectation function used to determine the expected config cost
-        :param print_res: indicates whether the results of the optimization should be printed
-    """
-    res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA',
-                   options={'maxiter': 1000, 'disp': False}, tol=1e-12)
-    if print_res:
-        print(res)
-    return {"beta": res.x[0], "gamma": res.x[1]}

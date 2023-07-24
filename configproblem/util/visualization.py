@@ -126,7 +126,7 @@ def plot_f_mu_cost_landscape(hamiltonian: DictArithmetic, nqubits: int):
     plt.show()
 
 
-def plot_counts_histogram(counts: Counts, nqubits: int, best_config: str, valid_configs: list[str]):
+def plot_counts_histogram(counts: Counts, best_config: str, valid_configs: list[str]):
     """
         Plots a histogram of the counts for each possible config.
         The best config is highlighted in red and valid configs are highlighted in brown.

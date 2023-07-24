@@ -3,16 +3,8 @@ from qiskit.circuit import Parameter
 
 import math
 
-from qubovert.utils import DictArithmetic
 
-
-def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumCircuit, Parameter]:
-    """
-        Creates a quantum circuit for the given hamiltonian
-
-        :param hamiltonian: The hamiltonian to create the circuit for
-        :param nqubits: The number of qubits to create the circuit for
-    """
+def problem_circuit(hamiltonian, nqubits: int) -> tuple[QuantumCircuit, Parameter]:
     gamma = Parameter("$\\gamma$")
     qc_p = QuantumCircuit(nqubits)
     normalization = math.pi/max(hamiltonian.values())
