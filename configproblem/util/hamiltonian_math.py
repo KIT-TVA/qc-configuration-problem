@@ -9,7 +9,7 @@ def solve_bruteforce(model):
     print("Constraints satisfied?", model.is_solution_valid(model_solution)) # we don't have constraints in our model
 
 
-def compute_config_energy(hamiltonian, config: str):
+def compute_config_energy(hamiltonian, config: list[int]):
     """
         Computes the energy for a given configuration (ising input) of a given hamiltonian (ising form)
     """
@@ -77,7 +77,7 @@ def compute_hamiltonian_energy(hamiltonian, counts, strategy='avg'):
     """
         Compute the energy state of a hamiltonian from measurements.
         
-        :param hamiltonian: the hamiltonian (QUBO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO) describing the system
         :param counts: measurement results for a quantum system for the hamiltonian
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
     """
@@ -136,7 +136,7 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
     """
         Compute the energy state of a hamiltonian from the statevector.
 
-        :param hamiltonian: the hamiltonian (QUBO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO) describing the system
         :param statevector: the statevector for a quantum system for the hamiltonian
         :param nqubits: number of qubits in the quantum system
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
