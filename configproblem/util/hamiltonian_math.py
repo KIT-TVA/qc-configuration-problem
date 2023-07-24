@@ -1,5 +1,6 @@
 import numpy as np
 from qubovert import spin_var
+from qubovert.utils import DictArithmetic
 
 
 def solve_bruteforce(model):
@@ -9,29 +10,19 @@ def solve_bruteforce(model):
     print("Constraints satisfied?", model.is_solution_valid(model_solution)) # we don't have constraints in our model
 
 
-def compute_config_energy(hamiltonian, config: list[int]):
+def compute_config_energy(hamiltonian: DictArithmetic, config: list[int]) -> float:
     """
-        Computes the energy for a given configuration (ising input) of a given hamiltonian (ising form)
+        Computes the energy of a given configuration (ising input) for a given hamiltonian (ising form)
+
+        :param hamiltonian: The hamiltonian to compute the energy for
+        :param config: The configuration to compute the energy for
     """
     energy = 0
     for key, factor in hamiltonian.items():
-        acting_qubits = len(key)
-
-        if acting_qubits == 0:
-            # identity case
-            energy += factor
-        elif acting_qubits == 1:
-            # single qubit term
-            q1 = key[0]
-            energy += factor * config[q1]
-        elif acting_qubits ==2:
-            # quadratic qubit term
-            q1 = key[0]
-            q2 = key[1]
-            energy += factor * config[q1] * config[q2]
-        else:
-            # non quadratic, error
-            raise RuntimeError(f"Non quadratic term in hamiltonian: {key, factor}")
+        term_energy = factor
+        for qubit in key:
+            term_energy *= config[qubit]
+        energy += term_energy
     return energy
                          
                          
