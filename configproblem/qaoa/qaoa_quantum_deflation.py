@@ -71,6 +71,7 @@ def get_probabilities_dict(problem_circuit: Callable, hamiltonian: QUSOMatrix, n
     """
         Calculates the probabilities for all configs of a given hamiltonian.
 
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
     """
@@ -89,6 +90,7 @@ def strategy_projection_deflation(problem_circuit: Callable, hamiltonian: QUSOMa
         Projection deflation eliminates the contribution of a state x from the hamiltonian
         by projection the hamiltonian onto the subspace orthogonal to x.
 
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
@@ -150,6 +152,7 @@ def strategy_variational_quantum_deflation(problem_circuit: Callable, hamiltonia
         by iteratively optimizing a cost function that is adjusted
         by introducing an overlap term with all previously found eigenstates.
 
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
@@ -198,6 +201,7 @@ def config_prioritization(problem_circuit: Callable, hamiltonian: QUSOMatrix, nq
         Calculates the output list for the given hamiltonian using the given strategy.
         Available strategies are: 'vqd' (variational quantum deflation) and 'pd' (projection deflation).
 
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
