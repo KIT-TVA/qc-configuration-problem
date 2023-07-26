@@ -1,7 +1,7 @@
 from qubovert import boolean_var, PCBO
 
 
-def convert_clause_to_penalty(clause: list[tuple[boolean_var, bool]]) -> tuple[PCBO, bool]:
+def convert_clause_to_penalty(clause: list[tuple[boolean_var, bool]]) -> list[tuple[PCBO, bool]]:
     """
         Coverts a given clause of a SAT instance in conjunctive form to the corresponding penalty
         The clause is encoded as a list of tuples containing a boolean_var
