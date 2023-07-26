@@ -99,7 +99,7 @@ def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqub
 
 def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60, n_features: int = 6,
                shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: bool = None,
-               use_optimizer: bool = True) -> tuple[Counts, QuantumCircuit]:
+               use_optimizer: bool = True, print_res: bool = True) -> tuple[Counts, QuantumCircuit]:
     """
         Applies the QAOA Algorithm for the given problem hamiltonian in QUSO form.
 
@@ -113,6 +113,7 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
                            used as start value when optimizing
         :param list warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
         :param bool use_optimizer: indicates whether to optimize theta using classical optimizers
+        :param bool print_res: indicates whether the results of the optimization should be printed
     """
     # define expectation function for optimizers
     expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots, warmstart_statevector)
@@ -120,7 +121,8 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
     # optimize beta and gamma
     if use_optimizer:
         res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA', tol=1e-12)
-        print(res)
+        if print_res:
+            print(res)
         theta = {"beta": res.x[0], "gamma": res.x[1]}
 
         # run qaoa circuit with parameters in theta
