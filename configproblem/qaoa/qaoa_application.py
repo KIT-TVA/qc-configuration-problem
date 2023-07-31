@@ -25,7 +25,7 @@ def mixer_circuit(nqubits: int) -> tuple[QuantumCircuit, Parameter]:
 
 
 def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                 amplitude_vector: list = None, measure: bool = True) -> tuple[QuantumCircuit, Parameter, Parameter]:
+                 amplitude_vector: list[float] = None, measure: bool = True) -> tuple[QuantumCircuit, Parameter, Parameter]:
     """
         Creates a QAOA circuit for the given hamiltonian
 
@@ -59,7 +59,7 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
 
 
 def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int, beta_val: float,
-            gamma_val: float, shots: int = 512, amplitude_vector=None) -> tuple[Counts, QuantumCircuit]:
+            gamma_val: float, shots: int = 512, amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
     qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector)
 
     # Set parameters for qc
@@ -78,7 +78,7 @@ def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int
 
 
 def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                    shots: int = 128, amplitude_vector=None) -> Callable:
+                    shots: int = 128, amplitude_vector: list[float] = None) -> Callable:
     backend = Aer.get_backend('qasm_simulator')
     backend.shots = shots
 
@@ -98,7 +98,7 @@ def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqub
 
 
 def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60, n_features: int = 6,
-               shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: bool = None,
+               shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: list[float] = None,
                use_optimizer: bool = True, print_res: bool = True) -> tuple[Counts, QuantumCircuit]:
     """
         Applies the QAOA Algorithm for the given problem hamiltonian in QUSO form.
@@ -132,7 +132,7 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
 
 
 def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
-                        beta_val: float, gamma_val: float, amplitude_vector: bool = None)\
+                        beta_val: float, gamma_val: float, amplitude_vector: list[float] = None)\
         -> tuple[list[float], QuantumCircuit]:
     qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector, measure=False)
 
@@ -152,7 +152,7 @@ def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, 
 
 
 def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                                amplitude_vector: bool = None, strategy: str = 'min') -> Callable:
+                                amplitude_vector: list[float] = None, strategy: str = 'min') -> Callable:
     backend = StatevectorSimulator()
 
     def execute_circ(theta):
@@ -173,7 +173,7 @@ def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArit
 
 def apply_qaoa_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60,
                            n_features: int = 6, theta={"beta": 0.01, "gamma": -0.01},
-                           warmstart_statevector: bool = None, use_optimizer: bool = True, print_res: bool = True)\
+                           warmstart_statevector: list[float] = None, use_optimizer: bool = True, print_res: bool = True)\
         -> tuple[list[float], QuantumCircuit]:
     """
         Applies the QAOA Algorithm for the given hamiltonian in QUSO form.
