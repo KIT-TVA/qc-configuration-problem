@@ -7,17 +7,17 @@ from configproblem import grover_sat as gs
 # (a v b) & !c
 # = a!c v b!c
 # = 110 v 100 v 010
-problem = [[(0, True), (1, True)], [(2, False)]]
-model = "../benchmarks/featureide-examples/sandwich.dimacs"
+if __name__ == "__main__":
+    try:
+        problem = [[(0, True), (1, True)], [(2, False)]]
 
-qasm = gsq.create_grover_for_model(model)
-print("created qasm with depth:")
-print(qasm)
+        model = "../benchmarks/featureide-examples/pc-config.dimacs"
 
-qc = gs.create_grover_for_model(model)
-print("created qiskit with depth:")
-#qc_new = parse(qasm)
-print(qc.depth())
-# print(gsq.collect_circuit_info(qc))
-# print(gsq.collect_circuit_info(qc_new))
-# print(qc_new.qasm())
+        #qasm = gsq.create_grover_for_model(model)
+        main_qasm, init, qasm_phase_oracle, main_qasm_pre_meas = gsq.create_ksat_grover(problem, 1)
+
+        print("created qasm with depth:")
+        # print(qasm)
+        print(gsq.get_circuit_depth_qasm(main_qasm))
+    except KeyboardInterrupt:
+        pass

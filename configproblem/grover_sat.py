@@ -258,12 +258,9 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[Quantu
     # Grover loop: add the oracle and diffusor step k times
     phase_oracle_gate = qc_phase_oracle.to_gate(label='U$_{oracle}$')
     register_map = list(range(num_inp_qubits))
-    main_qc.barrier()
     for i in range(k):
         main_qc.append(phase_oracle_gate, range(num_qubits))
-        main_qc.barrier()
         main_qc = main_qc.compose(diff, register_map)
-        main_qc.barrier()
 
     main_qc_pre_meas = main_qc.copy()
     # Add measurements of input qubits
@@ -321,8 +318,8 @@ def create_grover_for_model(rel_path, k=1):
         problem = CNF().from_dimacs(rd).to_problem()
     
     # create grover circuit
-    problem_qc, _, _ = create_ksat_grover(problem, k) # Create the circuit
-    return problem_qc
+    _, _, pre_measure_qc = create_ksat_grover(problem, k) # Create the circuit
+    return pre_measure_qc
 
 
 def collect_circuit_info(circuit, backend="aer_simulator", shots=100, simulate=False):

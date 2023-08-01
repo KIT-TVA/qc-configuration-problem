@@ -1,3 +1,6 @@
+import dataclasses
+import re
+
 from qiskit.circuit import Qubit, QuantumRegister, AncillaRegister, QuantumCircuit, Gate, ClassicalRegister
 from qiskit.quantum_info import Operator
 from qiskit import Aer, transpile
@@ -11,11 +14,11 @@ import os
 from configproblem.util.xml_reader import Extended_Modelreader
 from configproblem.util.dimacs_reader import DimacsReader
 from configproblem.util.cnf import CNF
+from configproblem.util.qasm3 import QASM3
 
 from fragments.quantum_states_qasm import add_all_hadamards
 
 np.set_printoptions(threshold=1e6)
-
 
 
 def create_not_oracle(ctrl_name: str, ctrl_indices: [int] = None) -> str:
@@ -166,6 +169,7 @@ def print_diagonal_analysis(circuit, measurements=None):
         print(vs, state_str, state_marking)
 
 
+
 def init_sat_circuit(problem: List[List[Tuple[int, bool]]]) -> (int, int, str, str, str, str):
     """
         Returns calculated number of qubits, created circuit
@@ -240,35 +244,6 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> (str, str, s
     return main_qasm, init, qasm_phase_oracle, main_qasm_pre_meas
 
 
-def calc_statevector_from(counts, width=None):
-    threshold = max(counts.values()) / 1e2  # one order of magnitude below the most often measured results
-    count_vector = []
-    shots = 0  # measured shots
-
-    # derive width from counts if not given
-    if width is None:
-        width = len(list(counts.keys()))
-
-    # create statevector by using counts
-    for i in range(2 ** width):
-        b = format(i, f"0{width}b")
-        c = counts.get(b)
-        # print(i, b, c)
-        if c is None:
-            count_vector.append(0)
-        else:
-            count_vector.append(c)
-            shots += c
-
-    # normalize vector
-    count_arr = np.array(count_vector)
-    norm_vector = count_arr / count_arr.sum()
-
-    # sqrt vector
-    statevector = np.sqrt(norm_vector)
-    return statevector
-
-
 def create_grover_for_model(rel_path, k=1):
     # load given model
     current_folder = os.path.dirname(os.path.realpath(__file__))
@@ -292,6 +267,28 @@ def create_grover_for_model(rel_path, k=1):
     problem_qc, _, _, _ = create_ksat_grover(problem, k)  # Create the circuit
     return problem_qc
 
+
+def get_circuit_depth_qasm(qasm: str):
+    @dataclasses.dataclass
+    class regex_in:
+        string: str
+        match: re.Match = None
+
+        def __eq__(self, other: str | re.Pattern):
+            if isinstance(other, str):
+                other = re.compile(other)
+            assert isinstance(other, re.Pattern)
+            self.match = other.fullmatch(self.string)
+            return self.match is not None
+
+        def __getitem__(self, group):
+            return self.match[group]
+    qubits = 0
+    for line in qasm.split('\n'):
+        match regex_in(line):
+            case r'qubit\[(\d+)\].*' as m:
+                qubits += int(m[1])
+    return qubits
 
 def collect_circuit_info(circuit, backend="aer_simulator", shots=100, simulate=False):
     # transpile and collect meta data
