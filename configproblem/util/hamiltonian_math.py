@@ -139,3 +139,14 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
         return hamiltonian_strategy_min_from_statevector(hamiltonian, statevector, nqubits)
     else:
         raise RuntimeError(f"Unsupported strategy: {strategy}")
+
+
+def get_hamiltonian_dimension(hamiltonian):
+    """
+        Returns the dimension of the hamiltonian (number of qubits)
+    """
+    nqubits = 0
+    for key in hamiltonian.keys():
+        for qubit in key:
+            nqubits = qubit if qubit > nqubits else nqubits
+    return nqubits + 1

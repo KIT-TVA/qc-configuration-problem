@@ -1,11 +1,9 @@
-from typing import List, Tuple, Any
+from typing import Any
 
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
-from qiskit.quantum_info import Operator
 from qubovert import boolean_var
 
-from configproblem.util.model_transformation import convert_clause_to_penalty, convert_to_penalty
 import math
 
 from qubovert.utils import DictArithmetic
@@ -53,13 +51,37 @@ def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumC
     return qc_p, gamma
 
 
-def exclude_config(sat_instance: list[list[tuple[boolean_var, bool]]], vars: list[boolean_var], config: str)\
+def exclude_config(sat_instance: list[list[tuple[boolean_var, bool]]], boolean_vars: list[boolean_var], config: str)\
         -> list[list[tuple[boolean_var, bool]]]:
+    """
+        Excludes the given configuration from the given sat instance by adding a clause to the sat instance
+
+        :param sat_instance: The sat instance to exclude the configuration from
+        :param boolean_vars: The variables of the sat instance
+        :param config: The configuration to exclude
+    """
     sat_exclusion_clause = []
     for index, value in enumerate(config[::-1]):
         if value == '0':
-            sat_exclusion_clause.append((vars[index], True))
+            sat_exclusion_clause.append((boolean_vars[index], True))
         else:
-            sat_exclusion_clause.append((vars[index], False))
+            sat_exclusion_clause.append((boolean_vars[index], False))
     sat_instance.append(sat_exclusion_clause)
     return sat_instance
+
+
+def convert_ancilla_bit_results(results: dict[str, Any], nfeatures: int) -> dict[str, Any]:
+    """
+        Converts the results from the quantum computer to the results for the original problem
+
+        :param results: The results from the quantum computer
+        :param nfeatures: The number of features used in the problem
+    """
+    new_results = {}
+    for key, value in results.items():
+        new_key = key[-nfeatures:]
+        if new_key in new_results:
+            new_results[new_key] += value
+        else:
+            new_results[new_key] = value
+    return new_results

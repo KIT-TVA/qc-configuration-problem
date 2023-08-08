@@ -126,18 +126,19 @@ def plot_f_mu_cost_landscape(hamiltonian: DictArithmetic, nqubits: int):
     plt.show()
 
 
-def plot_counts_histogram(counts: Counts, best_config: str, valid_configs: list[str]):
+def plot_counts_histogram(counts: Counts, nqubits: int, best_config: str, valid_configs: list[str]):
     """
         Plots a histogram of the counts for each possible config.
         The best config is highlighted in red and valid configs are highlighted in brown.
 
         :param counts: dictionary containing the counts for each config that was measured
+        :param nqubits: number of qubits
         :param best_config: valid config with the lowest energy
         :param valid_configs: list of valid configs
     """
-    for i in range(0, 2 ** 6):
-        if not counts.keys().__contains__(np.binary_repr(i, 6)):
-            counts[np.binary_repr(i, 6)] = 0
+    for i in range(0, 2 ** nqubits):
+        if not counts.keys().__contains__(np.binary_repr(i, nqubits)):
+            counts[np.binary_repr(i, nqubits)] = 0
 
     # Sort histogram
     sorted_keys = sorted(counts.keys())
@@ -166,7 +167,8 @@ def plot_counts_histogram(counts: Counts, best_config: str, valid_configs: list[
     for i, val in enumerate(sorted_values):
         plt.text(x=i, y=val + max_count / 100, s=f"{val}", fontdict=dict(fontsize=10), horizontalalignment="center")
 
-    plt.axhline(y=counts[best_config], color='r', linestyle='--')
+    if sorted_keys.__contains__(best_config):
+        plt.axhline(y=counts[best_config], color='r', linestyle='--')
 
     red_patch = mpatches.Patch(color='r', label="best config")
     brown_patch = mpatches.Patch(color="brown", label="valid config")
