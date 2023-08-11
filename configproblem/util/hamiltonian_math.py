@@ -67,7 +67,7 @@ def compute_hamiltonian_energy(hamiltonian, counts, strategy='avg'):
     """
         Compute the energy state of a hamiltonian from measurements.
         
-        :param hamiltonian: the hamiltonian (QUSO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO/PUSO) describing the system
         :param counts: measurement results for a quantum system for the hamiltonian
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
     """
@@ -126,7 +126,7 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
     """
         Compute the energy state of a hamiltonian from the statevector.
 
-        :param hamiltonian: the hamiltonian (QUSO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO/PUSO) describing the system
         :param statevector: the statevector for a quantum system for the hamiltonian
         :param nqubits: number of qubits in the quantum system
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
