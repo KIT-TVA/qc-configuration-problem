@@ -103,7 +103,7 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
                strategy: str = 'avg', use_optimizer: bool = True, print_res: bool = True)\
         -> tuple[Counts, QuantumCircuit]:
     """
-        Applies the QAOA Algorithm for the given problem hamiltonian in QUSO form.
+        Applies the QAOA Algorithm for the given problem hamiltonian in QUSO/PUSO form.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian used for creating the quantum circuit
@@ -181,7 +181,7 @@ def apply_qaoa_statevector(problem_circuit: Callable, hamiltonian: DictArithmeti
                            warmstart_statevector: list[float] = None, strategy: str = 'avg', use_optimizer: bool = True,
                            print_res: bool = True) -> tuple[list[float], QuantumCircuit]:
     """
-        Applies the QAOA Algorithm for the given hamiltonian in QUSO form.
+        Applies the QAOA Algorithm for the given hamiltonian in QUSO/PUSO form.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
         :param hamiltonian: the hamiltonian used for creating the quantum circuit
