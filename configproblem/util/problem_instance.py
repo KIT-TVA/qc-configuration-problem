@@ -29,8 +29,9 @@ class ProblemInstance:
                 if variable not in variables:
                     variables.append(variable)
 
-        if not set(variables).issubset(set(boolean_variables)):
-            raise ValueError("boolean_variables must contain all variables used in sat_instance")
+        for variable in variables:
+            if variable not in boolean_variables:
+                raise ValueError(f"variable {variable} is used in sat_instance but not in boolean_variables")
 
         if len(boolean_variables) != len(feature_cost):
             raise ValueError("boolean_variables and feature_cost must have the same length")
