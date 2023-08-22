@@ -1,37 +1,27 @@
 import numpy as np
-from qubovert import spin_var
+from qubovert.utils import DictArithmetic
 
 
 def solve_bruteforce(model):
     model_solution = model.solve_bruteforce()
     print("Variable assignment:", model_solution)
     print("Model value:", model.value(model_solution))
-    print("Constraints satisfied?", model.is_solution_valid(model_solution)) # we don't have constraints in our model
+    print("Constraints satisfied?", model.is_solution_valid(model_solution))  # we don't have constraints in our model
 
 
-def compute_config_energy(hamiltonian, config: list[int]):
+def compute_config_energy(hamiltonian: DictArithmetic, config: list[int]) -> float:
     """
-        Computes the energy for a given configuration (ising input) of a given hamiltonian (ising form)
+        Computes the energy of a given configuration (ising input) for a given hamiltonian (ising form)
+
+        :param hamiltonian: The hamiltonian to compute the energy for
+        :param config: The configuration to compute the energy for
     """
     energy = 0
     for key, factor in hamiltonian.items():
-        acting_qubits = len(key)
-
-        if acting_qubits == 0:
-            # identity case
-            energy += factor
-        elif acting_qubits == 1:
-            # single qubit term
-            q1 = key[0]
-            energy += factor * config[q1]
-        elif acting_qubits ==2:
-            # quadratic qubit term
-            q1 = key[0]
-            q2 = key[1]
-            energy += factor * config[q1] * config[q2]
-        else:
-            # non quadratic, error
-            raise RuntimeError(f"Non quadratic term in hamiltonian: {key, factor}")
+        term_energy = factor
+        for qubit in key:
+            term_energy *= config[qubit]
+        energy += term_energy
     return energy
                          
                          
@@ -77,7 +67,7 @@ def compute_hamiltonian_energy(hamiltonian, counts, strategy='avg'):
     """
         Compute the energy state of a hamiltonian from measurements.
         
-        :param hamiltonian: the hamiltonian (QUSO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO/PUSO) describing the system
         :param counts: measurement results for a quantum system for the hamiltonian
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
     """
@@ -136,7 +126,7 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
     """
         Compute the energy state of a hamiltonian from the statevector.
 
-        :param hamiltonian: the hamiltonian (QUSO) describing the system
+        :param hamiltonian: the hamiltonian (QUSO/PUSO) describing the system
         :param statevector: the statevector for a quantum system for the hamiltonian
         :param nqubits: number of qubits in the quantum system
         :param strategy: method for actually evaluating the hamiltonian. Available: 'avg', 'top', 'min'
@@ -149,3 +139,14 @@ def compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubit
         return hamiltonian_strategy_min_from_statevector(hamiltonian, statevector, nqubits)
     else:
         raise RuntimeError(f"Unsupported strategy: {strategy}")
+
+
+def get_hamiltonian_dimension(hamiltonian):
+    """
+        Returns the dimension of the hamiltonian (number of qubits)
+    """
+    nqubits = 0
+    for key in hamiltonian.keys():
+        for qubit in key:
+            nqubits = qubit if qubit > nqubits else nqubits
+    return nqubits + 1
