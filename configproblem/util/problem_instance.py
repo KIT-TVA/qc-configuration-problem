@@ -5,6 +5,63 @@ from qubovert.utils import DictArithmetic
 from configproblem.util.model_transformation import convert_to_penalty
 
 
+def generate_problem_instance(n_features: int, min_n_clauses: int, max_n_clauses: int, min_clause_length: int,
+                              max_clause_length: int, min_feature_cost: int, max_feature_cost: int, alpha_sat: float,
+                              seed: int = None) -> 'ProblemInstance':
+    """
+        Generates a random problem instance
+
+        :param n_features: number of features
+        :param min_n_clauses: minimum number of clauses
+        :param max_n_clauses: maximum number of clauses
+        :param min_clause_length: minimum number of variables in a clause
+        :param max_clause_length: maximum number of variables in a clause
+        :param min_feature_cost: minimum cost of a feature
+        :param max_feature_cost: maximum cost of a feature
+        :param alpha_sat: weight of the SAT part of the objective function
+        :param seed: seed for the random number generator
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    variables = [boolean_var(f"x{i}") for i in range(n_features)]
+    feature_cost = list(np.random.randint(min_feature_cost, max_feature_cost + 1, size=n_features))
+    sat_instance = generate_sat_instance(variables, min_n_clauses, max_n_clauses, min_clause_length, max_clause_length,
+                                         seed)
+
+    return ProblemInstance(sat_instance, variables, feature_cost, alpha_sat)
+
+
+def generate_sat_instance(variables: list[boolean_var], min_n_clauses: int, max_n_clauses: int, min_clause_length: int,
+                          max_clause_length: int, seed: int = None)\
+        -> list[list[tuple[boolean_var, bool]]]:
+    """
+        Generates a SAT instance with n_clauses clauses, each clause is a list of tuples (variable, is_not_negated)
+
+        :param variables: list of boolean variables that can be used in the SAT instance
+        :param min_n_clauses: minimum number of clauses
+        :param max_n_clauses: maximum number of clauses
+        :param min_clause_length: minimum number of variables in a clause
+        :param max_clause_length: maximum number of variables in a clause
+        :param seed: seed for the random number generator
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    n_clauses = np.random.randint(min_n_clauses, max_n_clauses + 1)
+    sat_instance = []
+    for _ in range(n_clauses):
+        clause_length = np.random.randint(min_clause_length, max_clause_length + 1)
+        clause = []
+        for _ in range(clause_length):
+            variable = np.random.choice(variables)
+            is_not_negated = np.random.choice([True, False])
+            clause.append((variable, is_not_negated))
+        sat_instance.append(clause)
+
+    return sat_instance
+
+
 class ProblemInstance:
     """ Represents a SAT instance with a cost associated with each feature"""
     sat_instance: list[list[tuple[boolean_var, bool]]]
@@ -16,7 +73,7 @@ class ProblemInstance:
     sat_model: PCBO = None
     cost_model: PCBO = None
 
-    def __init__(self, sat_instance: list[list[tuple[boolean_var, bool]]], boolean_variables: boolean_var,
+    def __init__(self, sat_instance: list[list[tuple[boolean_var, bool]]], boolean_variables: list[boolean_var],
                  feature_cost: list[int], alpha_sat: float):
         """
             :param sat_instance: list of clauses, each clause is a list of tuples (variable, is_not_negated)
