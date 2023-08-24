@@ -99,9 +99,21 @@ class ProblemInstance:
         self.alpha_sat = alpha_sat
 
     def __str__(self) -> str:
-        return f"sat_instance: {self.sat_instance}\n" \
+        return f"sat_instance: " + self.sat_instance_to_string() + "\n" \
                f"n_features: {len(self.boolean_variables)}\n" \
                f"feature_cost: {self.feature_cost}\n"
+
+    def sat_instance_to_string(self) -> str:
+        instance_parts = []
+        for clause in self.sat_instance:
+            clause_parts = []
+            for var, negated in clause:
+                literal = r"\neg {}".format(list(var.keys())[0][0]) if negated else r"{}".format(list(var.keys())[0][0])
+                clause_parts.append(literal)
+            clause = r" \vee ".join(clause_parts)
+            instance_parts.append(r"({})".format(clause))
+        instance_string = r" \wedge ".join(instance_parts)
+        return instance_string
 
     def get_sat_instance(self) -> list[list[tuple[boolean_var, bool]]]:
         return self.sat_instance
