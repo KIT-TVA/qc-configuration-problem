@@ -54,10 +54,12 @@ def generate_sat_instance(variables: list[boolean_var], min_n_clauses: int, max_
     for _ in range(n_clauses):
         clause_length = np.random.randint(min_clause_length, max_clause_length + 1)
         clause = []
+        available_variables = variables.copy()
         for _ in range(clause_length):
-            variable = np.random.choice(variables)
+            variable = np.random.choice(available_variables)
             is_not_negated = np.random.choice([True, False])
             clause.append((variable, is_not_negated))
+            available_variables.remove(variable)
         sat_instance.append(clause)
 
     return sat_instance
