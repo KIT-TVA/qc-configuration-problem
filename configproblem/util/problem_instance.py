@@ -104,7 +104,7 @@ class ProblemInstance:
     def __str__(self) -> str:
         return f"sat_instance: " + self.sat_instance_to_string() + "\n" \
                f"n_features: {len(self.boolean_variables)}\n" \
-               f"feature_cost: {self.feature_cost}\n"
+               f"feature_cost: {self.feature_cost}"
 
     def sat_instance_to_string(self) -> str:
         instance_parts = []
