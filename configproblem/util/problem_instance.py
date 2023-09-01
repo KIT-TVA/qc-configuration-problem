@@ -93,6 +93,13 @@ class ProblemInstance:
             if variable not in boolean_variables:
                 raise ValueError(f"variable {variable} is used in sat_instance but not in boolean_variables")
 
+        for variable in boolean_variables:
+            if variable not in variables:
+                variable_index = boolean_variables.index(variable)
+                if feature_cost[variable_index] == 0:
+                    boolean_variables.remove(variable)
+                    del feature_cost[variable_index]
+
         if len(boolean_variables) != len(feature_cost):
             raise ValueError("boolean_variables and feature_cost must have the same length")
 
