@@ -24,8 +24,8 @@ def generate_problem_instance_set(n_instances: int, n_features: int, min_n_claus
         :param alpha_sat: weight of the SAT part of the objective function,
                           will be considered as the maximum weight if generation_type is 'alpha_sat'
         :param seed: seed for the random number generator
-        :param generation_type: type of generation, can be 'random', 'growing_num_clauses', 'append_clauses' or
-                                'alpha_sat'
+        :param generation_type: type of generation, can be 'random', 'growing_num_clauses', 'growing_num_literals',
+                                'growing_num_clauses_and_literals', 'append_clauses' or 'alpha_sat'
         :param start_instance: problem instance to use as a starting point for 'alpha_sat' generation type
     """
     np.random.seed(seed)
@@ -37,6 +37,15 @@ def generate_problem_instance_set(n_instances: int, n_features: int, min_n_claus
         return generate_problem_instance_set_growing_num_clauses(n_instances, n_features, min_n_clauses, max_n_clauses,
                                                                  min_clause_length, max_clause_length,
                                                                  min_feature_cost, max_feature_cost, alpha_sat)
+    elif generation_type == 'growing_num_literals':
+        return generate_problem_instance_set_growing_num_literals(n_instances, n_features, min_n_clauses, max_n_clauses,
+                                                                  min_clause_length, max_clause_length,
+                                                                  min_feature_cost, max_feature_cost, alpha_sat)
+    elif generation_type == 'growing_num_clauses_and_literals':
+        return generate_problem_instance_set_growing_num_clauses_and_literals(n_instances, n_features, min_n_clauses,
+                                                                              max_n_clauses, min_clause_length,
+                                                                              max_clause_length, min_feature_cost,
+                                                                              max_feature_cost, alpha_sat)
     elif generation_type == 'append_clauses':
         return generate_problem_instance_set_append_clauses(n_instances, n_features, min_n_clauses, max_n_clauses,
                                                             min_clause_length, max_clause_length, min_feature_cost,
@@ -98,6 +107,64 @@ def generate_problem_instance_set_growing_num_clauses(n_instances: int, n_featur
             problem_instances.append(generate_problem_instance(n_features, n_clauses, n_clauses, min_clause_length,
                                                                max_clause_length, min_feature_cost, max_feature_cost,
                                                                alpha_sat))
+    return problem_instances
+
+
+def generate_problem_instance_set_growing_num_literals(n_instances: int, n_features: int, min_n_clauses: int,
+                                                       max_n_clauses: int, min_clause_length: int,
+                                                       max_clause_length: int, min_feature_cost: int,
+                                                       max_feature_cost: int, alpha_sat: float) \
+        -> list['ProblemInstance']:
+    """
+        Generates a set of problem instances with a growing number of literals per clause
+
+        :param n_instances: number of problem instances to generate
+        :param n_features: number of features
+        :param min_n_clauses: minimum number of clauses
+        :param max_n_clauses: maximum number of clauses
+        :param min_clause_length: minimum number of variables in a clause
+        :param max_clause_length: maximum number of variables in a clause
+        :param min_feature_cost: minimum cost of a feature
+        :param max_feature_cost: maximum cost of a feature
+        :param alpha_sat: weight of the SAT part of the objective function
+    """
+    n_instances_per_n_literals = int(n_instances / (max_clause_length - min_clause_length + 1))
+    problem_instances = []
+    for n_literals in range(min_clause_length, max_clause_length + 1):
+        for _ in range(n_instances_per_n_literals):
+            problem_instances.append(generate_problem_instance(n_features, min_n_clauses, max_n_clauses, n_literals,
+                                                               n_literals, min_feature_cost, max_feature_cost,
+                                                               alpha_sat))
+    return problem_instances
+
+
+def generate_problem_instance_set_growing_num_clauses_and_literals(n_instances: int, n_features: int,
+                                                                   min_n_clauses: int, max_n_clauses: int,
+                                                                   min_clause_length: int, max_clause_length: int,
+                                                                   min_feature_cost: int, max_feature_cost: int,
+                                                                   alpha_sat: float) -> list['ProblemInstance']:
+    """
+        Generates a set of problem instances with a growing number of clauses and growing number of literals per clause
+        for each number of clauses
+
+        :param n_instances: number of problem instances to generate
+        :param n_features: number of features
+        :param min_n_clauses: minimum number of clauses
+        :param max_n_clauses: maximum number of clauses
+        :param min_clause_length: minimum number of variables in a clause
+        :param max_clause_length: maximum number of variables in a clause
+        :param min_feature_cost: minimum cost of a feature
+        :param max_feature_cost: maximum cost of a feature
+        :param alpha_sat: weight of the SAT part of the objective function
+    """
+    n_instances_per_n_clauses = int(n_instances / (max_n_clauses - min_n_clauses + 1))
+    problem_instances = []
+    for n_clauses in range(min_n_clauses, max_n_clauses + 1):
+        problem_instances.extend(generate_problem_instance_set_growing_num_literals(n_instances_per_n_clauses,
+                                                                                    n_features, n_clauses, n_clauses,
+                                                                                    min_clause_length,
+                                                                                    max_clause_length, min_feature_cost,
+                                                                                    max_feature_cost, alpha_sat))
     return problem_instances
 
 
