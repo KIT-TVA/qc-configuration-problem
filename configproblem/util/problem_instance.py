@@ -339,11 +339,13 @@ class ProblemInstance:
     cost_model: PCBO = None
 
     def __init__(self, sat_instance: list[list[tuple[boolean_var, bool]]], boolean_variables: list[boolean_var],
-                 feature_cost: list[int], alpha_sat: float):
+                 feature_cost: list[int], alpha_sat: float = None):
         """
             :param sat_instance: list of clauses, each clause is a list of tuples (variable, is_not_negated)
             :param boolean_variables: ordered list of boolean variables
             :param feature_cost: list of costs for each feature
+            :param alpha_sat: weight of SAT part in combined hamiltonian; if None a normalized value will be computed
+                              based on feature_cost
         """
         variables = []
         for clause in sat_instance:
@@ -368,7 +370,17 @@ class ProblemInstance:
         self.sat_instance = sat_instance
         self.boolean_variables = boolean_variables
         self.feature_cost = feature_cost
-        self.alpha_sat = alpha_sat
+
+        if alpha_sat is not None:
+            self.alpha_sat = alpha_sat
+        else:
+            self.alpha_sat = self.__compute_normalized_alpha_sat()
+
+    def __compute_normalized_alpha_sat(self) -> float:
+        """
+            Computes a normalized value for self.alpha_sat based on feature_cost
+        """
+        return sum(self.feature_cost) * 1.5
 
     def __str__(self) -> str:
         return f"sat_instance: " + self.sat_instance_to_string() + "\n" \
