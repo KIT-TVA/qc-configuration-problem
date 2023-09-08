@@ -393,7 +393,7 @@ class ProblemInstance:
         for clause in self.sat_instance:
             clause_parts = []
             for var, negated in clause:
-                literal = r"\neg {}".format(list(var.keys())[0][0]) if negated else r"{}".format(list(var.keys())[0][0])
+                literal = r"\neg {}".format(list(var.keys())[0][0]) if not negated else r"{}".format(list(var.keys())[0][0])
                 clause_parts.append(literal)
             clause = r" \vee ".join(clause_parts)
             instance_parts.append(r"({})".format(clause))
