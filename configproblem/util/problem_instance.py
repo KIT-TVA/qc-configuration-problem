@@ -247,6 +247,15 @@ def generate_problem_instance(n_features: int, min_n_clauses: int, max_n_clauses
         :param max_feature_cost: maximum cost of a feature
         :param alpha_sat: weight of the SAT part of the objective function
     """
+    if min_n_clauses > max_n_clauses:
+        raise ValueError("min_n_clauses must be smaller than or equal to max_n_clauses")
+    if min_clause_length > max_clause_length:
+        raise ValueError("min_clause_length must be smaller than or equal to max_clause_length")
+    if min_feature_cost > max_feature_cost:
+        raise ValueError("min_feature_cost must be smaller than or equal to max_feature_cost")
+    if max_clause_length > n_features:
+        raise ValueError("max_clause_length must be smaller than or equal to n_features")
+
     variables = [boolean_var(f"x{i}") for i in range(n_features)]
     feature_cost = list(np.random.randint(min_feature_cost, max_feature_cost + 1, size=n_features))
     sat_instance = generate_sat_instance(variables, min_n_clauses, max_n_clauses, min_clause_length, max_clause_length)
@@ -380,7 +389,10 @@ class ProblemInstance:
         """
             Computes a normalized value for self.alpha_sat based on feature_cost
         """
-        return sum(self.feature_cost) * 1.5
+        if sum(self.feature_cost) == 0:
+            return 1
+        else:
+            return sum(self.feature_cost) * 1.5
 
     def __str__(self) -> str:
         return f"sat_instance: " + self.sat_instance_to_string() + "\n" \
@@ -393,7 +405,8 @@ class ProblemInstance:
         for clause in self.sat_instance:
             clause_parts = []
             for var, negated in clause:
-                literal = r"\neg {}".format(list(var.keys())[0][0]) if not negated else r"{}".format(list(var.keys())[0][0])
+                literal = r"\neg {}".format(list(var.keys())[0][0]) if not negated else r"{}"\
+                    .format(list(var.keys())[0][0])
                 clause_parts.append(literal)
             clause = r" \vee ".join(clause_parts)
             instance_parts.append(r"({})".format(clause))
