@@ -33,13 +33,18 @@ def plot_beta_gamma_cost_landscape(problem_circuit: Callable, hamiltonians: list
     x_axis = np.arange(-math.pi, math.pi, step_size)
     y_axis = np.arange(-2 * math.pi, 2 * math.pi, 2 * step_size)
 
-    fig, axes = plt.subplots(len(hamiltonians), len(strategies), figsize=(18, 16))
-    fig.suptitle(r"cost landscape for different values of $\gamma$ and $\beta$", fontsize=20)
+    fig, axes = plt.subplots(len(hamiltonians), len(strategies), figsize=(6 * len(strategies), 5.5 * len(hamiltonians)))
+    fig.suptitle(r"cost landscape for different values of $\gamma$ and $\beta$", fontsize="xx-large")
     fig.tight_layout(pad=5.0)
     cmap = "viridis"
 
-    for ax, arguments in zip(axes.ravel(), plot_arguments):
-        ax.set_title(f"Hamiltonian: {arguments['hamiltonian']['name']}\n strategy: {arguments['strategy']}")
+    if len(hamiltonians) == 1 and len(strategies) == 1:
+        axes_and_arguments = zip([axes], plot_arguments)
+    else:
+        axes_and_arguments = zip(axes.flat, plot_arguments)
+
+    for ax, arguments in axes_and_arguments:
+        ax.set_title(f"Hamiltonian: {arguments['hamiltonian']['name']}\n Strategy: {arguments['strategy']}")
         ax.set_xlabel(r"$\beta$")
         ax.set_ylabel(r"$\gamma$")
 
@@ -56,7 +61,7 @@ def plot_beta_gamma_cost_landscape(problem_circuit: Callable, hamiltonians: list
                                                                    strategy=strategy)
                 value = expectation_function([j, i])
                 expectation[i_index][j_index] = value
-    
+
                 if expectation_max < value:
                     expectation_max = value
                 elif expectation_min > value:
