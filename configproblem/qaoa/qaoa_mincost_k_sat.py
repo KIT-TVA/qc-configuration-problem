@@ -34,14 +34,17 @@ def k_rz_gate(qc: QuantumCircuit, qubits: list, gate_parameter: float) -> Quantu
     return qc
 
 
-def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumCircuit, Parameter]:
+def problem_circuit(hamiltonian: DictArithmetic, nqubits: int, param_name_appendix: str = '')\
+        -> tuple[QuantumCircuit, Parameter]:
     """
         Creates a quantum circuit for the given hamiltonian
 
         :param hamiltonian: The hamiltonian to create the circuit for
         :param nqubits: The number of qubits to create the circuit for
+        :param param_name_appendix: Appendix of the parameter name in case there are multiple parameters for different
+                                    layers of the circuit
     """
-    gamma = Parameter("$\\gamma$")
+    gamma = Parameter("$\\gamma$" + param_name_appendix)
     qc_p = QuantumCircuit(nqubits)
     normalization = math.pi/max(hamiltonian.values())
 
