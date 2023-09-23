@@ -362,16 +362,23 @@ class ProblemInstance:
                 if variable not in variables:
                     variables.append(variable)
 
+        # Check if all variables in sat_instance are in boolean_variables
         for variable in variables:
             if variable not in boolean_variables:
                 raise ValueError(f"variable {variable} is used in sat_instance but not in boolean_variables")
 
+        # Identify variables in boolean_variables that are not used in sat_instance
+        variables_to_remove = []
         for variable in boolean_variables:
             if variable not in variables:
-                variable_index = boolean_variables.index(variable)
-                if feature_cost[variable_index] == 0:
-                    boolean_variables.remove(variable)
-                    del feature_cost[variable_index]
+                variables_to_remove.append(variable)
+
+        # Remove variables from boolean_variables and feature_cost that are not used in sat_instance if their cost is 0
+        for variable in variables_to_remove:
+            variable_index = boolean_variables.index(variable)
+            if feature_cost[variable_index] == 0:
+                boolean_variables.remove(variable)
+                del feature_cost[variable_index]
 
         if len(boolean_variables) != len(feature_cost):
             raise ValueError("boolean_variables and feature_cost must have the same length")
@@ -397,6 +404,7 @@ class ProblemInstance:
     def __str__(self) -> str:
         return f"sat_instance: " + self.sat_instance_to_string() + "\n" \
                                                                    f"n_features: {len(self.boolean_variables)}\n" \
+                                                                   f"boolean_variables: {self.boolean_variables}\n" \
                                                                    f"feature_cost: {self.feature_cost}\n" \
                                                                    f"alpha_sat: {self.alpha_sat}"
 
