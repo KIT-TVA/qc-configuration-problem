@@ -286,12 +286,12 @@ def get_problem_instance_with_added_clause(problem_instance: 'ProblemInstance', 
             if variables_str.__contains__(f"x{i}"):
                 continue
             else:
-                variables.append(boolean_var(f"x{i}"))
+                variable = boolean_var(f"x{i}")
+                variables.append(variable)
                 feature_cost.append(np.random.randint(min_feature_cost, max_feature_cost + 1))
-
-        # sort variables and feature_cost
-        variables = [x for _, x in sorted(zip(variables_str, variables))]
-        feature_cost = [x for _, x in sorted(zip(variables_str, feature_cost))]
+        # sort variables and feature_cost by variable name
+        variables.sort(key=lambda x: list(x.keys())[0][0])
+        feature_cost = [feature_cost[variables.index(var)] for var in variables]
 
     sat_instance.append(generate_sat_clause(variables, min_clause_length, max_clause_length))
     return ProblemInstance(sat_instance, variables, feature_cost, problem_instance.alpha_sat)
@@ -342,10 +342,6 @@ class ProblemInstance:
     boolean_variables: list[boolean_var]
     feature_cost: list[int]
     alpha_sat: float
-    valid_configs: list[str] = None
-    best_config: str = None
-    sat_model: PCBO = None
-    cost_model: PCBO = None
 
     def __init__(self, sat_instance: list[list[tuple[boolean_var, bool]]], boolean_variables: list[boolean_var],
                  feature_cost: list[int], alpha_sat: float = None):
@@ -434,15 +430,11 @@ class ProblemInstance:
         return self.feature_cost
 
     def get_valid_configs(self) -> list[str]:
-        if self.valid_configs is not None:
-            return self.valid_configs
-
         valid_configs = []
         for i in range(2 ** len(self.boolean_variables)):
             config = np.binary_repr(i, width=len(self.boolean_variables))
             if self.__check_config_validity(config):
                 valid_configs.append(config)
-        self.valid_configs = valid_configs
         return valid_configs
 
     def __check_config_validity(self, config) -> bool:
@@ -462,9 +454,6 @@ class ProblemInstance:
         return True
 
     def get_best_config(self) -> str:
-        if self.best_config is not None:
-            return self.best_config
-
         best_config = None
         best_cost = float('inf')
         for config in self.get_valid_configs():
@@ -472,7 +461,6 @@ class ProblemInstance:
             if cost < best_cost:
                 best_cost = cost
                 best_config = config
-        self.best_config = best_config
         return best_config
 
     def __get_config_cost(self, config: str) -> int:
@@ -486,28 +474,19 @@ class ProblemInstance:
         return cost
 
     def get_puso_sat_hamiltonian(self) -> DictArithmetic:
-        if self.sat_model is not None:
-            return self.sat_model.to_puso()
-        self.sat_model = convert_to_penalty(self.sat_instance)
-        return self.sat_model.to_puso()
+        return convert_to_penalty(self.sat_instance).to_puso()
 
     def get_cost_hamiltonian(self) -> DictArithmetic:
-        if self.cost_model is not None:
-            return self.cost_model.to_puso()
         cost_model = PCBO()
         for i in range(len(self.boolean_variables)):
             cost_model += self.feature_cost[i] * self.boolean_variables[i]
-        self.cost_model = cost_model
-        return self.cost_model.to_puso()
+        return cost_model.to_puso()
 
     def get_puso_combined_hamiltonian(self) -> DictArithmetic:
         return self.alpha_sat * self.get_puso_sat_hamiltonian() + self.get_cost_hamiltonian()
 
     def get_quso_sat_hamiltonian(self) -> DictArithmetic:
-        if self.sat_model is not None:
-            return self.sat_model.to_quso()
-        self.sat_model = convert_to_penalty(self.sat_instance)
-        return self.sat_model.to_quso()
+        return convert_to_penalty(self.sat_instance).to_quso()
 
     def get_quso_combined_hamiltonian(self) -> DictArithmetic:
         return self.alpha_sat * self.get_quso_sat_hamiltonian() + self.get_cost_hamiltonian()
