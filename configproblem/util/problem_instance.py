@@ -187,7 +187,7 @@ def generate_problem_instance_set_append_clauses(n_instances: int, n_features: i
     """
     n_start_instances = int(n_instances / (max_n_clauses - min_n_clauses + 1))
     problem_instances = []
-    for _ in range(n_start_instances - 1):
+    for _ in range(n_start_instances):
         problem_instances.append(generate_problem_instance(n_features, min_n_clauses, min_n_clauses, min_clause_length,
                                                            max_clause_length, min_feature_cost, max_feature_cost,
                                                            alpha_sat))
