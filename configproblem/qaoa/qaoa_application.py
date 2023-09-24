@@ -1,6 +1,7 @@
 import math
 from typing import Callable
 
+import numpy as np
 from qiskit import QuantumCircuit, Aer, transpile
 from qiskit.circuit import Parameter
 from qiskit.result import Counts
@@ -413,7 +414,7 @@ def optimize_parameters_per_layer(theta: list[dict], expectation: Callable, prin
         parameter_list.append(parameter_pair["beta"])
         parameter_list.append(parameter_pair["gamma"])
 
-    res = minimize(expectation, parameter_list, method='COBYLA',
+    res = minimize(expectation, np.array(parameter_list), method='COBYLA',
                    options={'maxiter': 1000, 'disp': False}, tol=1e-12)
     if print_res:
         print(res)
@@ -432,7 +433,7 @@ def optimize_parameters(theta: dict, expectation: Callable, print_res: bool) -> 
         :param expectation: the expectation function used to determine the expected config cost
         :param print_res: indicates whether the results of the optimization should be printed
     """
-    res = minimize(expectation, [theta["beta"], theta["gamma"]], method='COBYLA',
+    res = minimize(expectation, np.array([theta["beta"], theta["gamma"]]), method='COBYLA',
                    options={'maxiter': 1000, 'disp': False}, tol=1e-12)
     if print_res:
         print(res)
