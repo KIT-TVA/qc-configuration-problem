@@ -289,9 +289,10 @@ def get_problem_instance_with_added_clause(problem_instance: 'ProblemInstance', 
                 variable = boolean_var(f"x{i}")
                 variables.append(variable)
                 feature_cost.append(np.random.randint(min_feature_cost, max_feature_cost + 1))
+
         # sort variables and feature_cost by variable name
-        variables.sort(key=lambda x: list(x.keys())[0][0])
-        feature_cost = [feature_cost[variables.index(var)] for var in variables]
+        variables, feature_cost = map(list, zip(*sorted(zip(variables, feature_cost),
+                                                        key=lambda x: list(x[0].keys())[0][0])))
 
     sat_instance.append(generate_sat_clause(variables, min_clause_length, max_clause_length))
     return ProblemInstance(sat_instance, variables, feature_cost, problem_instance.alpha_sat)
@@ -333,6 +334,9 @@ def generate_sat_clause(variables: list[boolean_var], min_clause_length: int, ma
         is_not_negated = np.random.choice([True, False])
         clause.append((variable, is_not_negated))
         available_variables.remove(variable)
+    # sort clause by variable name
+    clause.sort(key=lambda x: list(x[0].keys())[0][0])
+
     return clause
 
 
