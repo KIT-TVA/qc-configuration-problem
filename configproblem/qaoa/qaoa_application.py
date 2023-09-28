@@ -26,27 +26,6 @@ def mixer_circuit(nqubits: int, beta: Parameter) -> QuantumCircuit:
     return qc_mix
 
 
-def quantum_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
-                             beta_val_list: list[float], gamma_val_list: list[float], shots: int = 512,
-                             amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
-    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
-                                             amplitude_vector=amplitude_vector, params_per_layer=True)
-    # Set parameters for qc
-    for i in range(layers):
-        qc = qc.bind_parameters({
-            beta_list[i]: beta_val_list[i],
-            gamma_list[i]: gamma_val_list[i]
-        })
-
-    # run and measure qc
-    qasm_sim = Aer.get_backend('qasm_simulator')
-    transpiled_qaoa = transpile(qc, qasm_sim)
-    results = qasm_sim.run(transpiled_qaoa, shots=shots).result()
-    counts = results.get_counts()
-
-    return counts, qc
-
-
 def get_expectation_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int,
                                      nlayers: int, shots: int = 128, amplitude_vector: list[float] = None,
                                      strategy: str = 'avg') -> Callable:
@@ -77,31 +56,9 @@ def apply_qaoa_params_per_layer(problem_circuit: Callable, hamiltonian: DictArit
 
     beta_val_list, gamma_val_list = determine_params_per_layer(layers, theta, expectation, use_optimizer, print_res)
 
-    counts, qc = quantum_params_per_layer(problem_circuit, hamiltonian, n_features, layers, beta_val_list,
-                                          gamma_val_list, shots, warmstart_statevector)
+    counts, qc = quantum(problem_circuit, hamiltonian, n_features, layers, beta_val_list,
+                         gamma_val_list, shots, amplitude_vector=warmstart_statevector, params_per_layer=True)
     return counts, qc
-
-
-def quantum_statevector_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int,
-                                         layers: int, beta_val_list: list[float], gamma_val_list: list[float],
-                                         amplitude_vector: list[float] = None) -> tuple[list[float], QuantumCircuit]:
-    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
-                                             amplitude_vector=amplitude_vector, params_per_layer=True, measure=False)
-
-    # Set parameters for qc
-    for i in range(layers):
-        qc = qc.bind_parameters({
-            beta_list[i]: beta_val_list[i],
-            gamma_list[i]: gamma_val_list[i]
-        })
-
-    # run and measure qc
-    statevector_sim = StatevectorSimulator()
-    transpiled_qaoa = transpile(qc, statevector_sim)
-    result = statevector_sim.run(transpiled_qaoa).result()
-    probabilities = result.get_statevector().probabilities()
-
-    return probabilities, qc
 
 
 def get_expectation_statevector_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic,
@@ -149,8 +106,8 @@ def apply_qaoa_statevector_params_per_layer(problem_circuit: Callable, hamiltoni
                                                                warmstart_statevector, strategy)
     beta_val_list, gamma_val_list = determine_params_per_layer(layers, theta, expectation, use_optimizer, print_res)
 
-    probabilities, qc = quantum_statevector_params_per_layer(problem_circuit, hamiltonian, n_features, layers,
-                                                             beta_val_list, gamma_val_list, warmstart_statevector)
+    probabilities, qc = quantum_statevector(problem_circuit, hamiltonian, n_features, layers, beta_val_list,
+                                            gamma_val_list, warmstart_statevector, params_per_layer=True)
     return probabilities, qc
 
 
@@ -220,18 +177,18 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
     return qc, beta_list, gamma_list
 
 
-
-
-def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int, beta_val: float,
-            gamma_val: float, shots: int = 512, amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
-    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector=amplitude_vector,
-                                   params_per_layer=False)
+def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
+            beta_val_list: list[float], gamma_val_list: list[float], shots: int = 512,
+            amplitude_vector: list[float] = None, params_per_layer: bool = True) -> tuple[Counts, QuantumCircuit]:
+    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
+                                             amplitude_vector=amplitude_vector, params_per_layer=params_per_layer)
 
     # Set parameters for qc
-    qc = qc.bind_parameters({
-        beta: beta_val,
-        gamma: gamma_val
-    })
+    for i in range(len(beta_val_list)):
+        qc = qc.bind_parameters({
+            beta_list[i]: beta_val_list[i],
+            gamma_list[i]: gamma_val_list[i]
+        })
 
     # run and measure qc
     qasm_sim = Aer.get_backend('qasm_simulator')
@@ -298,22 +255,24 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
         theta = optimize_parameters(theta, expectation, print_res)
 
         # run qaoa circuit with parameters in theta
-    counts, qc = quantum(problem_circuit, hamiltonian, n_features, layers, theta["beta"], theta["gamma"], shots,
-                         warmstart_statevector)
+    counts, qc = quantum(problem_circuit, hamiltonian, n_features, layers, [theta["beta"]], [theta["gamma"]], shots,
+                         amplitude_vector=warmstart_statevector, params_per_layer=False)
     return counts, qc
 
 
 def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
-                        beta_val: float, gamma_val: float, amplitude_vector: list[float] = None)\
-        -> tuple[list[float], QuantumCircuit]:
-    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector=amplitude_vector,
-                                   params_per_layer=False, measure=False)
+                        beta_val_list: list[float], gamma_val_list: list[float], amplitude_vector: list[float] = None,
+                        params_per_layer: bool = True) -> tuple[list[float], QuantumCircuit]:
+    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
+                                             amplitude_vector=amplitude_vector, params_per_layer=params_per_layer,
+                                             measure=False)
 
     # Set parameters for qc
-    qc = qc.bind_parameters({
-        beta: beta_val,
-        gamma: gamma_val
-    })
+    for i in range(len(beta_val_list)):
+        qc = qc.bind_parameters({
+            beta_list[i]: beta_val_list[i],
+            gamma_list[i]: gamma_val_list[i]
+        })
 
     # run and measure qc
     statevector_sim = StatevectorSimulator()
@@ -378,8 +337,8 @@ def apply_qaoa_statevector(problem_circuit: Callable, hamiltonian: DictArithmeti
     if use_optimizer:
         theta = optimize_parameters(theta, expectation, print_res)
 
-    probabilities, qc = quantum_statevector(problem_circuit, hamiltonian, n_features, layers, theta["beta"],
-                                            theta["gamma"], warmstart_statevector)
+    probabilities, qc = quantum_statevector(problem_circuit, hamiltonian, n_features, layers, [theta["beta"]],
+                                            [theta["gamma"]], warmstart_statevector, params_per_layer=False)
     return probabilities, qc
 
 
