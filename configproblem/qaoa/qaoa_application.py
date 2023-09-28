@@ -26,59 +26,18 @@ def mixer_circuit(nqubits: int, beta: Parameter) -> QuantumCircuit:
     return qc_mix
 
 
-def get_expectation_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int,
-                                     nlayers: int, shots: int = 128, amplitude_vector: list[float] = None,
-                                     strategy: str = 'avg') -> Callable:
-    backend = Aer.get_backend('qasm_simulator')
-    backend.shots = shots
-
-    def execute_circ(theta: list[float]):
-        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
-                                                 amplitude_vector=amplitude_vector, params_per_layer=True)
-        # Set parameters for qc
-        for i in range(math.floor(len(theta) / 2)):
-            qc = qc.bind_parameters({
-                beta_list[i]: theta[2 * i],
-                gamma_list[i]: theta[(2 * i) + 1]
-            })
-        counts = backend.run(qc, nshots=shots).result().get_counts()
-        return compute_hamiltonian_energy(hamiltonian, counts, strategy=strategy)
-
-    return execute_circ
-
-
 def apply_qaoa_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60,
                                 n_features: int = 6, shots: int = 256, theta: dict = {"beta": 0.01, "gamma": -0.01},
                                 warmstart_statevector: list[float] = None, strategy: str = 'avg',
                                 use_optimizer: bool = True, print_res: bool = True) -> tuple[Counts, QuantumCircuit]:
-    expectation = get_expectation_params_per_layer(problem_circuit, hamiltonian, n_features, layers, shots,
-                                                   warmstart_statevector, strategy=strategy)
+    expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots,
+                                  amplitude_vector=warmstart_statevector, params_per_layer=True, strategy=strategy)
 
     beta_val_list, gamma_val_list = determine_params_per_layer(layers, theta, expectation, use_optimizer, print_res)
 
     counts, qc = quantum(problem_circuit, hamiltonian, n_features, layers, beta_val_list,
                          gamma_val_list, shots, amplitude_vector=warmstart_statevector, params_per_layer=True)
     return counts, qc
-
-
-def get_expectation_statevector_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic,
-                                                 nqubits: int, nlayers: int, amplitude_vector: list[float] = None,
-                                                 strategy: str = 'avg') -> Callable:
-    backend = StatevectorSimulator()
-
-    def execute_circ(theta: list[float]):
-        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
-                                                 amplitude_vector=amplitude_vector, params_per_layer=True)
-        # Set parameters for qc
-        for i in range(math.floor(len(theta) / 2)):
-            qc = qc.bind_parameters({
-                beta_list[i]: theta[2 * i],
-                gamma_list[i]: theta[(2 * i) + 1]
-            })
-        statevector = backend.run(qc).result().get_statevector()
-        return compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits, strategy=strategy)
-
-    return execute_circ
 
 
 def apply_qaoa_statevector_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: int = 60,
@@ -102,8 +61,9 @@ def apply_qaoa_statevector_params_per_layer(problem_circuit: Callable, hamiltoni
         :param print_res: indicates whether the results of the optimization should be printed
     """
     # define expectation function for optimizers
-    expectation = get_expectation_statevector_params_per_layer(problem_circuit, hamiltonian, n_features, layers,
-                                                               warmstart_statevector, strategy)
+    expectation = get_expectation_statevector(problem_circuit, hamiltonian, n_features, layers,
+                                              amplitude_vector=warmstart_statevector, params_per_layer=True,
+                                              strategy=strategy)
     beta_val_list, gamma_val_list = determine_params_per_layer(layers, theta, expectation, use_optimizer, print_res)
 
     probabilities, qc = quantum_statevector(problem_circuit, hamiltonian, n_features, layers, beta_val_list,
@@ -200,20 +160,20 @@ def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int
 
 
 def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                    shots: int = 128, amplitude_vector: list[float] = None, strategy: str = 'avg') -> Callable:
+                    shots: int = 128, amplitude_vector: list[float] = None, params_per_layer: bool = True,
+                    strategy: str = 'avg') -> Callable:
     backend = Aer.get_backend('qasm_simulator')
     backend.shots = shots
 
-    def execute_circ(theta):
-        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
-                                       amplitude_vector=amplitude_vector, params_per_layer=False)
-
+    def execute_circ(theta: list[float]):
+        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                                 amplitude_vector=amplitude_vector, params_per_layer=params_per_layer)
         # Set parameters for qc
-        qc = qc.bind_parameters({
-            beta: theta[0],
-            gamma: theta[1]
-        })
-
+        for i in range(math.floor(len(theta) / 2)):
+            qc = qc.bind_parameters({
+                beta_list[i]: theta[2 * i],
+                gamma_list[i]: theta[(2 * i) + 1]
+            })
         counts = backend.run(qc, nshots=shots).result().get_counts()
         return compute_hamiltonian_energy(hamiltonian, counts, strategy=strategy)
 
@@ -247,7 +207,8 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
                                            print_res=print_res)
 
     # define expectation function for optimizers
-    expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots, warmstart_statevector,
+    expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots,
+                                  amplitude_vector=warmstart_statevector, params_per_layer=params_per_layer,
                                   strategy=strategy)
 
     # optimize beta and gamma
@@ -284,21 +245,21 @@ def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, 
 
 
 def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                                amplitude_vector: list[float] = None, strategy: str = 'avg') -> Callable:
+                                amplitude_vector: list[float] = None, params_per_layer: bool = True,
+                                strategy: str = 'avg') -> Callable:
     backend = StatevectorSimulator()
 
-    def execute_circ(theta):
-        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
-                                       amplitude_vector=amplitude_vector, params_per_layer=False, measure=False)
-
+    def execute_circ(theta: list[float]):
+        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                                 amplitude_vector=amplitude_vector, params_per_layer=params_per_layer,
+                                                 measure=False)
         # Set parameters for qc
-        qc = qc.bind_parameters({
-            beta: theta[0],
-            gamma: theta[1]
-        })
-
+        for i in range(math.floor(len(theta) / 2)):
+            qc = qc.bind_parameters({
+                beta_list[i]: theta[2 * i],
+                gamma_list[i]: theta[(2 * i) + 1]
+            })
         statevector = backend.run(qc).result().get_statevector()
-
         return compute_hamiltonian_energy_from_statevector(hamiltonian, statevector, nqubits, strategy=strategy)
 
     return execute_circ
@@ -330,7 +291,8 @@ def apply_qaoa_statevector(problem_circuit: Callable, hamiltonian: DictArithmeti
                                                        use_optimizer=use_optimizer, print_res=print_res)
 
     # define expectation function for optimizers
-    expectation = get_expectation_statevector(problem_circuit, hamiltonian, n_features, layers, warmstart_statevector,
+    expectation = get_expectation_statevector(problem_circuit, hamiltonian, n_features, layers,
+                                              amplitude_vector=warmstart_statevector, params_per_layer=params_per_layer,
                                               strategy=strategy)
 
     # optimize beta and gamma
