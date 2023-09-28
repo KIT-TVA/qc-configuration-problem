@@ -13,65 +13,24 @@ from configproblem.fragments.quantum_states import superposition_circuit
 from configproblem.util.hamiltonian_math import compute_hamiltonian_energy, compute_hamiltonian_energy_from_statevector
 
 
-def mixer_circuit(nqubits: int, param_name_appendix: str = '') -> tuple[QuantumCircuit, Parameter]:
+def mixer_circuit(nqubits: int, beta: Parameter) -> QuantumCircuit:
     """
         Creates a mixer circuit for the given number of qubits
 
         :param nqubits: The number of qubits to create the circuit for
-        :param param_name_appendix: Appendix of the parameter name in case there are multiple parameters for different
-                                    layers of the circuit
+        :param beta: The parameter to use for the circuit
     """
-    beta = Parameter("$\\beta$" + param_name_appendix)
     qc_mix = QuantumCircuit(nqubits)
     for i in range(0, nqubits):
         qc_mix.rx(2 * beta, i)
-    return qc_mix, beta
-
-
-def qaoa_circuit_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                                  amplitude_vector: list[float] = None, measure: bool = True)\
-        -> tuple[QuantumCircuit, list[Parameter], list[Parameter]]:
-    """
-        Creates a QAOA circuit for the given hamiltonian where there is a unique pair of parameters per layer
-
-        :param problem_circuit: The method for creating the corresponding problem quantum circuit
-        :param hamiltonian: The hamiltonian to create the circuit for
-        :param nqubits: The number of qubits to create the circuit for
-        :param nlayers: The number of layers to create the circuit for
-        :param amplitude_vector: The amplitude vector to use for the circuit
-        :param measure: Whether to measure the circuit
-    """
-    if amplitude_vector is not None:
-        # warm start
-        qc = QuantumCircuit(nqubits)
-        qc.initialize(amplitude_vector)
-    else:
-        # equal superposition
-        qc = superposition_circuit(nqubits)
-
-    beta_list = []
-    gamma_list = []
-
-    for i in range(nlayers):
-        qc.barrier()
-        qg_problem, gamma = problem_circuit(hamiltonian, nqubits, param_name_appendix=str(i))
-        qc = qc.compose(qg_problem)
-        gamma_list.append(gamma)
-        qc.barrier()
-        qg_mixer, beta = mixer_circuit(nqubits, param_name_appendix=str(i))
-        qc = qc.compose(qg_mixer)
-        beta_list.append(beta)
-
-    if measure:
-        qc.measure_all()
-    return qc, beta_list, gamma_list
+    return qc_mix
 
 
 def quantum_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
                              beta_val_list: list[float], gamma_val_list: list[float], shots: int = 512,
                              amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
-    qc, beta_list, gamma_list = qaoa_circuit_params_per_layer(problem_circuit, hamiltonian, nqubits, layers,
-                                                              amplitude_vector)
+    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
+                                             amplitude_vector=amplitude_vector, params_per_layer=True)
     # Set parameters for qc
     for i in range(layers):
         qc = qc.bind_parameters({
@@ -95,8 +54,8 @@ def get_expectation_params_per_layer(problem_circuit: Callable, hamiltonian: Dic
     backend.shots = shots
 
     def execute_circ(theta: list[float]):
-        qc, beta_list, gamma_list = qaoa_circuit_params_per_layer(problem_circuit, hamiltonian, nqubits, nlayers,
-                                                                  amplitude_vector)
+        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                                 amplitude_vector=amplitude_vector, params_per_layer=True)
         # Set parameters for qc
         for i in range(math.floor(len(theta) / 2)):
             qc = qc.bind_parameters({
@@ -126,8 +85,8 @@ def apply_qaoa_params_per_layer(problem_circuit: Callable, hamiltonian: DictArit
 def quantum_statevector_params_per_layer(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int,
                                          layers: int, beta_val_list: list[float], gamma_val_list: list[float],
                                          amplitude_vector: list[float] = None) -> tuple[list[float], QuantumCircuit]:
-    qc, beta_list, gamma_list = qaoa_circuit_params_per_layer(problem_circuit, hamiltonian, nqubits, layers,
-                                                              amplitude_vector, measure=False)
+    qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers,
+                                             amplitude_vector=amplitude_vector, params_per_layer=True, measure=False)
 
     # Set parameters for qc
     for i in range(layers):
@@ -151,8 +110,8 @@ def get_expectation_statevector_params_per_layer(problem_circuit: Callable, hami
     backend = StatevectorSimulator()
 
     def execute_circ(theta: list[float]):
-        qc, beta_list, gamma_list = qaoa_circuit_params_per_layer(problem_circuit, hamiltonian, nqubits, nlayers,
-                                                                  amplitude_vector)
+        qc, beta_list, gamma_list = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                                 amplitude_vector=amplitude_vector, params_per_layer=True)
         # Set parameters for qc
         for i in range(math.floor(len(theta) / 2)):
             qc = qc.bind_parameters({
@@ -217,8 +176,8 @@ def determine_params_per_layer(layers: int, theta: dict, expectation: Callable, 
 
 
 def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, nlayers: int,
-                 amplitude_vector: list[float] = None, measure: bool = True)\
-        -> tuple[QuantumCircuit, Parameter, Parameter]:
+                 amplitude_vector: list[float] = None, params_per_layer: bool = True, measure: bool = True)\
+        -> tuple[QuantumCircuit, list[Parameter], list[Parameter]]:
     """
         Creates a QAOA circuit for the given hamiltonian
 
@@ -227,6 +186,7 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
         :param nqubits: The number of qubits to create the circuit for
         :param nlayers: The number of layers to create the circuit for
         :param amplitude_vector: The amplitude vector to use for the circuit
+        :param params_per_layer: indicates whether a unique parameter pair should be used for each layer
         :param measure: Whether to measure the circuit
     """
     if amplitude_vector is not None:
@@ -237,23 +197,35 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
         # equal superposition
         qc = superposition_circuit(nqubits)
 
-    qg_mixer, beta = mixer_circuit(nqubits)
-    qg_problem, gamma = problem_circuit(hamiltonian, nqubits)
+    # define parameters
+    if params_per_layer:
+        beta_list = [Parameter("$\\beta_{}$".format(i)) for i in range(nlayers)]
+        gamma_list = [Parameter("$\\gamma_{}$".format(i)) for i in range(nlayers)]
+    else:
+        beta_list = ["$\\beta$"]
+        gamma_list = ["$\\gamma$"]
 
-    for layer in range(nlayers):
+    for i in range(nlayers):
         qc.barrier()
+        qg_problem = problem_circuit(hamiltonian, nqubits, gamma_list[i]) if params_per_layer \
+            else problem_circuit(hamiltonian, nqubits, gamma_list[0])
         qc = qc.compose(qg_problem)
         qc.barrier()
+        qg_mixer = mixer_circuit(nqubits, beta_list[i]) if params_per_layer \
+            else mixer_circuit(nqubits, beta_list[0])
         qc = qc.compose(qg_mixer)
 
     if measure:
         qc.measure_all()
-    return qc, beta, gamma
+    return qc, beta_list, gamma_list
+
+
 
 
 def quantum(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int, beta_val: float,
             gamma_val: float, shots: int = 512, amplitude_vector: list[float] = None) -> tuple[Counts, QuantumCircuit]:
-    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector)
+    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector=amplitude_vector,
+                                   params_per_layer=False)
 
     # Set parameters for qc
     qc = qc.bind_parameters({
@@ -276,7 +248,8 @@ def get_expectation(problem_circuit: Callable, hamiltonian: DictArithmetic, nqub
     backend.shots = shots
 
     def execute_circ(theta):
-        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers, amplitude_vector)
+        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                       amplitude_vector=amplitude_vector, params_per_layer=False)
 
         # Set parameters for qc
         qc = qc.bind_parameters({
@@ -333,7 +306,8 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
 def quantum_statevector(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int, layers: int,
                         beta_val: float, gamma_val: float, amplitude_vector: list[float] = None)\
         -> tuple[list[float], QuantumCircuit]:
-    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector, measure=False)
+    qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, layers, amplitude_vector=amplitude_vector,
+                                   params_per_layer=False, measure=False)
 
     # Set parameters for qc
     qc = qc.bind_parameters({
@@ -355,7 +329,8 @@ def get_expectation_statevector(problem_circuit: Callable, hamiltonian: DictArit
     backend = StatevectorSimulator()
 
     def execute_circ(theta):
-        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers, amplitude_vector, measure=False)
+        qc, beta, gamma = qaoa_circuit(problem_circuit, hamiltonian, nqubits, nlayers,
+                                       amplitude_vector=amplitude_vector, params_per_layer=False, measure=False)
 
         # Set parameters for qc
         qc = qc.bind_parameters({
