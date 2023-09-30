@@ -53,8 +53,8 @@ def qaoa_circuit(problem_circuit: Callable, hamiltonian: DictArithmetic, nqubits
         beta_list = [Parameter("$\\beta{}$".format(i)) for i in range(nlayers)]
         gamma_list = [Parameter("$\\gamma{}$".format(i)) for i in range(nlayers)]
     else:
-        beta_list = ["$\\beta$"]
-        gamma_list = ["$\\gamma$"]
+        beta_list = [Parameter("$\\beta$")]
+        gamma_list = [Parameter("$\\gamma$")]
 
     for i in range(nlayers):
         qc.barrier()
