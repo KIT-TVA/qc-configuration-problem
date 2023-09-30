@@ -118,6 +118,23 @@ def apply_qaoa(problem_circuit: Callable, hamiltonian: DictArithmetic, layers: i
                shots: int = 256, theta={"beta": 0.01, "gamma": -0.01}, warmstart_statevector: list[float] = None,
                strategy: str = 'avg', use_optimizer: bool = True, params_per_layer: bool = True,
                print_res: bool = True) -> tuple[Counts, QuantumCircuit]:
+    """
+        Applies the QAOA Algorithm for the given hamiltonian in QUSO/PUSO form.
+
+        :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param hamiltonian: the hamiltonian used for creating the quantum circuit
+                            and determining the expected config cost
+        :param layers: the hyperparameter p of QAOA defining how many cost-mixer-layers will be in the circuit
+        :param n_features: the number of independent variables in the input hamiltonian
+        :param shots: the number of shots to use when running the circuit
+        :param theta: dictionary with keys "beta" and "gamma" that parameterize the QAOA circuit,
+                        used as start value when optimizing
+        :param warmstart_statevector: statevector to warmstart to, instead of creating an equal superposition
+        :param strategy: the strategy used to compute the expected config cost
+        :param use_optimizer: indicates whether to optimize theta using classical optimizers
+        :param params_per_layer: indicates whether a unique parameter pair should be used for each layer
+        :param print_res: indicates whether the results of the optimization should be printed
+    """
     expectation = get_expectation(problem_circuit, hamiltonian, n_features, layers, shots,
                                   amplitude_vector=warmstart_statevector, params_per_layer=params_per_layer,
                                   strategy=strategy)
