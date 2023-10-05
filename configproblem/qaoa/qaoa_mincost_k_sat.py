@@ -34,21 +34,22 @@ def k_rz_gate(qc: QuantumCircuit, qubits: list, gate_parameter: float) -> Quantu
     return qc
 
 
-def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumCircuit, Parameter]:
+def problem_circuit(hamiltonian: DictArithmetic, nqubits: int, gamma: Parameter)\
+        -> QuantumCircuit:
     """
         Creates a quantum circuit for the given hamiltonian
 
         :param hamiltonian: The hamiltonian to create the circuit for
         :param nqubits: The number of qubits to create the circuit for
+        :param gamma: The parameter to use for the circuit
     """
-    gamma = Parameter("$\\gamma$")
     qc_p = QuantumCircuit(nqubits)
     normalization = math.pi/max(hamiltonian.values())
 
     for key, factor in hamiltonian.items():
         k_rz_gate(qc_p, list(key), 2 * normalization * factor * gamma)
 
-    return qc_p, gamma
+    return qc_p
 
 
 def exclude_config(sat_instance: list[list[tuple[boolean_var, bool]]], boolean_vars: list[boolean_var], config: str)\

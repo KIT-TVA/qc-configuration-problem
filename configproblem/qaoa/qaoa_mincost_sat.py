@@ -6,14 +6,15 @@ import math
 from qubovert.utils import DictArithmetic
 
 
-def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumCircuit, Parameter]:
+def problem_circuit(hamiltonian: DictArithmetic, nqubits: int, gamma)\
+        -> QuantumCircuit:
     """
         Creates a quantum circuit for the given hamiltonian
 
         :param hamiltonian: The hamiltonian to create the circuit for
         :param nqubits: The number of qubits to create the circuit for
+        :param gamma: The parameter to use for the circuit
     """
-    gamma = Parameter("$\\gamma$")
     qc_p = QuantumCircuit(nqubits)
     normalization = math.pi/max(hamiltonian.values())
     
@@ -35,4 +36,4 @@ def problem_circuit(hamiltonian: DictArithmetic, nqubits: int) -> tuple[QuantumC
             # non quadratic, error
             RuntimeError(f"Non quadratic term in hamiltonian: {key, factor}")
             
-    return qc_p, gamma
+    return qc_p

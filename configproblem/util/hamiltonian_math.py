@@ -150,3 +150,15 @@ def get_hamiltonian_dimension(hamiltonian):
         for qubit in key:
             nqubits = qubit if qubit > nqubits else nqubits
     return nqubits + 1
+
+
+def get_normalized_hamiltonian(hamiltonian):
+    """
+        Returns a normalized version of the hamiltonian where the largest coefficient is 1
+    """
+    hamiltonian = hamiltonian.copy()
+    hamiltonian[()] = 0
+    max_coeff = max(hamiltonian.values())
+    for key in hamiltonian.keys():
+        hamiltonian[key] /= max_coeff
+    return hamiltonian
