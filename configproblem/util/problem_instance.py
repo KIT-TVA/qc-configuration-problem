@@ -467,20 +467,26 @@ class ProblemInstance:
     def get_puso_sat_hamiltonian(self) -> DictArithmetic:
         return convert_to_penalty(self.sat_instance).to_puso()
 
-    def get_cost_hamiltonian(self) -> DictArithmetic:
+    def __get_cost_pcbo(self) -> PCBO:
         cost_model = PCBO()
         for i in range(len(self.boolean_variables)):
             cost_model += self.feature_cost[i] * self.boolean_variables[i]
-        return cost_model.to_puso()
+        return cost_model
+
+    def get_cost_hamiltonian(self) -> DictArithmetic:
+        return self.__get_cost_pcbo().to_puso()
+
+    def __get_combined_pcbo(self) -> PCBO:
+        return self.alpha_sat * convert_to_penalty(self.sat_instance) + self.__get_cost_pcbo()
 
     def get_puso_combined_hamiltonian(self) -> DictArithmetic:
-        return self.alpha_sat * self.get_puso_sat_hamiltonian() + self.get_cost_hamiltonian()
+        return self.__get_combined_pcbo().to_puso()
 
     def get_quso_sat_hamiltonian(self) -> DictArithmetic:
         return convert_to_penalty(self.sat_instance).to_quso()
 
     def get_quso_combined_hamiltonian(self) -> DictArithmetic:
-        return self.alpha_sat * self.get_quso_sat_hamiltonian() + self.get_cost_hamiltonian()
+        return self.__get_combined_pcbo().to_quso()
 
     def get_result_quality(self, probabilities_dict) -> float:
         """
@@ -492,6 +498,44 @@ class ProblemInstance:
             return -1
         result_quality = 0
         for config in self.get_valid_configs():
-            result_quality += probabilities_dict[config]
+            result_quality += probabilities_dict[config] if config in probabilities_dict else 0
         result_quality *= 2 ** self.get_num_features() / len(self.get_valid_configs())
         return result_quality
+
+    def convert_solution_dict(self, solution_dict: dict, hamiltonian_type: str) -> dict:
+        """
+            Converts a solution dict from a QUBO solver to a solution dict for the original problem instance
+
+            :param solution_dict: solution dict from a QUBO solver
+            :param hamiltonian_type: type of hamiltonian used to generate the solution dict, can be 'puso_sat',
+                                     'quso_sat', 'puso_combined', 'quso_combined' or 'cost'
+        """
+        if hamiltonian_type == 'puso_sat' or hamiltonian_type == 'quso_sat':
+            hamiltonian_pcbo = convert_to_penalty(self.sat_instance)
+        elif hamiltonian_type == 'puso_combined' or hamiltonian_type == 'quso_combined':
+            hamiltonian_pcbo = self.__get_combined_pcbo()
+        elif hamiltonian_type == 'cost':
+            hamiltonian_pcbo = self.__get_cost_pcbo()
+        else:
+            raise ValueError(f"hamiltonian_type {hamiltonian_type} is not supported")
+
+        result_dict = {}
+        for key, value in solution_dict.items():
+            # convert key from binary string to dict in the form of {var_index: -1/1}
+            key_dict = {}
+            for i in range(len(key)):
+                key_dict[i] = 1 if key[-i - 1] == '0' else -1
+
+            # convert key_dict from dict in the form of {var_index: -1/1} to dict in the form of {'var_name': -1/1}
+            result_key_dict = hamiltonian_pcbo.convert_solution(key_dict, spin=True)
+
+            # convert result_key_dict from dict in the form of {'var_name': -1/1} to binary string
+            result_key = ''
+            for variable in self.boolean_variables:
+                if list(variable.keys())[0][0] not in result_key_dict:
+                    result_key += '0'
+                else:
+                    result_key += '1' if result_key_dict[list(variable.keys())[0][0]] == 1 else '0'
+            result_key = result_key[::-1]
+            result_dict[result_key] = value
+        return result_dict
