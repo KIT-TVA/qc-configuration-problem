@@ -20,7 +20,7 @@ def compute_config_energy(hamiltonian: DictArithmetic, config: list[int]) -> flo
     for key, factor in hamiltonian.items():
         term_energy = factor
         for qubit in key:
-            term_energy *= config[qubit]
+            term_energy *= config[-qubit - 1]
         energy += term_energy
     return energy
                          
@@ -32,7 +32,7 @@ def hamiltonian_strategy_average(hamiltonian, counts):
     average_energy = 0
     for config_str in counts.keys():
         # convert the 0/1 feature string to ising integers
-        config = [-1 if s == "0" else 1 for s in config_str]
+        config = [1 if s == "0" else -1 for s in config_str]
         energy = compute_config_energy(hamiltonian, config)*counts.get(config_str)
         average_energy += energy
     average_energy /= counts.shots()
@@ -46,7 +46,7 @@ def hamiltonian_strategy_top(hamiltonian, counts):
     # take the config that was measured most often
     config_str = max(counts, key=counts.get) 
     # convert the 0/1 feature string to ising integers
-    config = [-1 if s == "0" else 1 for s in config_str]
+    config = [1 if s == "0" else -1 for s in config_str]
     return compute_config_energy(hamiltonian, config)
                         
 
@@ -57,7 +57,7 @@ def hamiltonian_strategy_min(hamiltonian, counts):
     min_energy = float('inf')
     for config_str in counts.keys():
         # convert the 0/1 feature string to ising integers
-        config = [-1 if s == "0" else 1 for s in config_str]
+        config = [1 if s == "0" else -1 for s in config_str]
         energy = compute_config_energy(hamiltonian, config)
         min_energy = energy if energy < min_energy else min_energy
     return min_energy
@@ -89,7 +89,7 @@ def hamiltonian_strategy_average_from_statevector(hamiltonian, statevector, nqub
     average_energy = 0
     for i, probability in enumerate(probabilities):
         # convert index to ising integers
-        config = [-1 if s == "0" else 1 for s in np.binary_repr(i, width=nqubits)]
+        config = [1 if s == "0" else -1 for s in np.binary_repr(i, width=nqubits)]
         energy = compute_config_energy(hamiltonian, config)*probability
         average_energy += energy
     return average_energy
@@ -103,7 +103,7 @@ def hamiltonian_strategy_top_from_statevector(hamiltonian, statevector, nqubits)
     # take the config that was measured most often
     config_index = min(range(len(probabilities)), key=probabilities.__getitem__)
     # convert index to ising integers
-    config = [-1 if s == "0" else 1 for s in np.binary_repr(config_index, width=nqubits)]
+    config = [1 if s == "0" else -1 for s in np.binary_repr(config_index, width=nqubits)]
     return compute_config_energy(hamiltonian, config)
 
 
@@ -116,7 +116,7 @@ def hamiltonian_strategy_min_from_statevector(hamiltonian, statevector, nqubits,
     for i, probability in enumerate(probabilities):
         if probability > threshold:
             # convert index to ising integers
-            config = [-1 if s == "0" else 1 for s in np.binary_repr(i, width=nqubits)]
+            config = [1 if s == "0" else -1 for s in np.binary_repr(i, width=nqubits)]
             energy = compute_config_energy(hamiltonian, config)
             min_energy = energy if energy < min_energy else min_energy
     return min_energy
