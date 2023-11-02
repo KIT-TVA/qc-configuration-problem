@@ -488,6 +488,20 @@ class ProblemInstance:
     def get_quso_combined_hamiltonian(self) -> DictArithmetic:
         return self.__get_combined_pcbo().to_quso()
 
+    def get_success_probability(self, probabilities_dict) -> float:
+        """
+            Returns the sum of the probabilities for every valid config of a given result,
+            returns -1 if no valid configs exist
+
+            :param probabilities_dict: dictionary with probabilities for each configuration
+        """
+        if len(self.get_valid_configs()) == 0:
+            return -1
+        success_probability = 0
+        for config in self.get_valid_configs():
+            success_probability += probabilities_dict[config] if config in probabilities_dict else 0
+        return success_probability
+
     def get_result_quality(self, probabilities_dict) -> float:
         """
             Returns the quality of a given result, returns -1 if no valid configs exist
@@ -496,11 +510,8 @@ class ProblemInstance:
         """
         if len(self.get_valid_configs()) == 0:
             return -1
-        result_quality = 0
-        for config in self.get_valid_configs():
-            result_quality += probabilities_dict[config] if config in probabilities_dict else 0
-        result_quality *= 2 ** self.get_num_features() / len(self.get_valid_configs())
-        return result_quality
+        success_probability = self.get_success_probability(probabilities_dict)
+        return success_probability * (2 ** self.get_num_features() / len(self.get_valid_configs()))
 
     def convert_solution_dict(self, solution_dict: dict, hamiltonian_type: str) -> dict:
         """
