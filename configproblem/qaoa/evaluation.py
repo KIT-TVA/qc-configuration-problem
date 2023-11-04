@@ -36,6 +36,7 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str) -> dict
     probabilities_dict = instance.convert_solution_dict(probabilities_dict, 'puso_combined')
 
     return {'hamiltonian': hamiltonian,
+            'probabilities': probabilities_dict,
             'success_probability': instance.get_success_probability(probabilities_dict),
             'best_config_probability': probabilities_dict[instance.get_best_config()],
             'result_quality': instance.get_result_quality(probabilities_dict),
@@ -66,6 +67,7 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str) -> dict
     probabilities_dict = instance.convert_solution_dict(probabilities_dict, 'quso_combined')
 
     return {'hamiltonian': hamiltonian,
+            'probabilities': probabilities_dict,
             'success_probability': instance.get_success_probability(probabilities_dict),
             'best_config_probability': probabilities_dict[instance.get_best_config()],
             'result_quality': instance.get_result_quality(probabilities_dict),
