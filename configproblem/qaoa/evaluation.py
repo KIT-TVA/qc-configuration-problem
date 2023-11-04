@@ -171,3 +171,15 @@ def generate_instance_set_different_number_of_clauses(n_instances_per_n_clauses:
                                                        n_literals_per_clause, n_literals_per_clause, min_feature_cost,
                                                        max_feature_cost, alpha_sat, seed, generation_type, None))
     return instances
+
+
+def filter_out_unfulfillable_instances(instances: list[ProblemInstance]) -> list[ProblemInstance]:
+    """
+        Filters out unfulfillable instances from the given list of instances
+
+        :param instances: The instances to filter
+    """
+    for instance in instances:
+        if not instance.get_valid_configs():
+            instances.remove(instance)
+    return instances
