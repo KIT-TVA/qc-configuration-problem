@@ -137,7 +137,7 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
 min_feature_cost = 10
 max_feature_cost = 100
 alpha_sat = None
-layers = 1
+layers = 40
 strategy = 'avg'
 
 parser = argparse.ArgumentParser()
