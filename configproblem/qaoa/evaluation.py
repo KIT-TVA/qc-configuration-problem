@@ -1,5 +1,6 @@
 import argparse
 import sys
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,20 @@ print_res = False
 warmstart_statevector = None
 
 
+def timing_decorator(func):
+    execution_times = []
+
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        execution_times.append(time.time() - start_time)
+        return result
+
+    wrapper.execution_times = execution_times
+    return wrapper
+
+
+@timing_decorator
 def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its puso hamiltonian and returns the results
@@ -48,6 +63,7 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
             'circuit_width': get_hamiltonian_dimension(hamiltonian)}
 
 
+@timing_decorator
 def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its quso hamiltonian and returns the results
@@ -111,11 +127,13 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
             'best_config': instance.get_best_config(),
             'n_layers': layers,
             'strategy': strategy,
+            'execution_time_puso': run_puso_qaoa.execution_times[-1],
             'probabilities_puso': puso_results['probabilities'],
             'problem_circuit_depth_puso': puso_problem_circuit(puso_results['hamiltonian'],
                                                                get_hamiltonian_dimension(puso_results['hamiltonian']),
                                                                Parameter("$\\gamma$")).depth(),
             'circuit_width_puso': get_hamiltonian_dimension(puso_results['hamiltonian']),
+            'execution_time_quso': run_quso_qaoa.execution_times[-1],
             'probabilities_quso': quso_results['probabilities'],
             'problem_circuit_depth_quso': puso_problem_circuit(quso_results['hamiltonian'],
                                                                get_hamiltonian_dimension(quso_results['hamiltonian']),
@@ -124,7 +142,7 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
 
 
 def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str,
-                                   skip_quso: bool = False):
+                                   skip_quso: bool = False, skip_puso: bool = False):
     """
         Runs the QAOA algorithm for the given instances and returns the results as a dataframe
 
@@ -134,7 +152,7 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
     """
     for index, instance in enumerate(instances):
-        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso)])
+        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso)])
         df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
     return
 
