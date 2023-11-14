@@ -19,7 +19,7 @@ print_res = False
 warmstart_statevector = None
 
 
-def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str) -> dict:
+def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its puso hamiltonian and returns the results
 
@@ -29,14 +29,17 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str) -> dict
     """
     hamiltonian = instance.get_puso_combined_hamiltonian()
 
-    probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, hamiltonian, layers,
-                                              get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
-                                              strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
-    probabilities_dict = {}
-    for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
-        probabilities_dict[(np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian)))] = probabilities[i]
+    if skip:
+        probabilities_dict = {}
+    else:
+        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, hamiltonian, layers,
+                                                  get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
+                                                  strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
+        probabilities_dict = {}
+        for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
+            probabilities_dict[(np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian)))] = probabilities[i]
 
-    probabilities_dict = instance.convert_solution_dict(probabilities_dict, 'puso_combined')
+        probabilities_dict = instance.convert_solution_dict(probabilities_dict, 'puso_combined')
 
     return {'hamiltonian': hamiltonian,
             'probabilities': probabilities_dict,
@@ -77,7 +80,8 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
             'circuit_width': get_hamiltonian_dimension(hamiltonian)}
 
 
-def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_quso: bool = False) -> dict:
+def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_quso: bool = False,
+                 skip_puso: bool = False) -> dict:
     """
         Runs the QAOA algorithm for the given instance and returns the results
 
@@ -85,8 +89,9 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
+        :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
     """
-    puso_results = run_puso_qaoa(instance, layers, strategy)
+    puso_results = run_puso_qaoa(instance, layers, strategy, skip=skip_puso)
     quso_results = run_quso_qaoa(instance, layers, strategy, skip=skip_quso)
 
     min_literals_per_clause = sys.maxsize
@@ -144,6 +149,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--start", help="start instance", type=int)
 parser.add_argument("-e", "--end", help="end instance", type=int)
 parser.add_argument("-q", "--skip_quso", help="skip quso", action='store_true')
+parser.add_argument("-p", "--skip_puso", help="skip puso", action='store_true')
 
 args = parser.parse_args()
 
@@ -156,4 +162,4 @@ instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\
              range(args.start, args.end + 1)]
 
 # run the algorithm for the instances
-run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso)
+run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso)
