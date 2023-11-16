@@ -175,6 +175,7 @@ args = parser.parse_args()
 Path("benchmarks\\qaoa-feature-models\\results").mkdir(parents=True, exist_ok=True)
 
 # get problem instances from dimacs files
+np.random.seed(42)
 instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
                                               min_feature_cost, max_feature_cost, alpha_sat) for i in
              range(args.start, args.end + 1)]
