@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 import time
 from pathlib import Path
@@ -157,6 +158,117 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
     return
 
 
+def get_config_cost(config: str, feature_cost: list[int]) -> int:
+    """
+        Returns the cost of the given configuration
+
+        :param config: The configuration to get the cost for
+        :param feature_cost: The cost of each feature
+    """
+    cost = 0
+    for i in range(len(config)):
+        if config[i] == "1":
+            cost += feature_cost[i]
+    return cost
+
+
+def get_valid_configs_sorted_by_cost(row: pd.Series) -> list[str]:
+    """
+        Returns the valid configurations sorted by cost for the given dataframe
+
+        :param row: The row of the dataframe to get the valid configurations sorted by cost for
+    """
+    config_cost_dict = {}
+
+    valid_configs = re.sub("[\[\] ']", "", row["valid_configs"]).split(",")
+    feature_cost = list(map(int, re.sub("[\[\] ']", "", row["feature_cost"]).split(",")))
+    for config in valid_configs:
+        config_cost_dict[config] = get_config_cost(config, feature_cost)
+    config_cost_dict = {k: v for k, v in sorted(config_cost_dict.items(), key=lambda item: item[1])}
+
+    return list(config_cost_dict.keys())
+
+
+def get_probability_dict(row: pd.Series, puso: bool = True) -> dict:
+    """
+        Returns the probability dictionary for the given row of the dataframe
+
+        :param row: The row of the dataframe to get the probability dictionaries for
+        :param puso: Whether to get the probability dictionaries for the puso or quso hamiltonian
+    """
+    if puso:
+        probabilities_str = re.sub("[\{\} ']", "", row["probabilities_puso"]).split(",")
+    else:
+        probabilities_str = re.sub("[\{\} ']", "", row["probabilities_quso"]).split(",")
+
+    probability_dict = {}
+    for config_probability_pair in probabilities_str:
+        config_probability_pair = config_probability_pair.split(":")
+        config = config_probability_pair[0]
+        probability = float(config_probability_pair[1])
+        probability_dict[config] = probability
+    return probability_dict
+
+
+def get_result_quality(row: pd.Series, puso: bool = True) -> float:
+    """
+        Returns the result quality for the given row of the dataframe
+
+        :param row: The row of the dataframe to get the result quality for
+        :param puso: Whether to get the result quality for the puso or quso hamiltonian
+    """
+    probabilities = get_probability_dict(row, puso)
+    valid_configs = get_valid_configs_sorted_by_cost(row)
+
+    result_quality = 0
+    for config in valid_configs:
+        result_quality += probabilities[config] * 2**int(row["n_features"]) / len(valid_configs)
+    return result_quality
+
+
+def get_probability_of_best_n_configs(row: pd.Series, n: int, puso: bool = True) -> float:
+    """
+        Returns the probability of getting one of the best n configurations for the given row of the dataframe
+
+        :param row: The row of the dataframe to get the probability of the best n configurations for
+        :param n: The number of configurations to get the probability of
+                  if n is greater than the number of configurations or the number of valid configurations,
+                  the probability of all valid configurations is returned
+        :param puso: Whether to get the probability of the best n configurations for the puso or quso hamiltonian
+    """
+    probabilities = get_probability_dict(row, puso)
+    valid_configs = get_valid_configs_sorted_by_cost(row)
+
+    current_n = len(valid_configs) if n > len(valid_configs) else len(probabilities) if n > len(probabilities) else n
+    probability_of_best_n_configs = 0
+    for i in range(current_n):
+        probability_of_best_n_configs += probabilities[valid_configs[i]]
+
+    return probability_of_best_n_configs
+
+
+def get_n_most_probable_configs(row: pd.Series, n: int, puso: bool = True) -> list[str]:
+    """
+        Returns the n most probable configurations for the given row of the dataframe
+
+        :param row: The row of the dataframe to get the n most probable configurations for
+        :param n: The number of configurations to get
+                  if n is greater than the number of configurations, all configurations are returned
+        :param puso: Whether to get the n most probable configurations for the puso or quso hamiltonian
+    """
+    probabilities = get_probability_dict(row, puso)
+    n_most_probable_configs = []
+
+    if n > len(probabilities):
+        n = len(probabilities)
+
+    for i in range(n):
+        n_most_probable_configs.append(max(probabilities, key=probabilities.get))
+        probabilities.pop(max(probabilities, key=probabilities.get))
+
+    return n_most_probable_configs
+
+
 min_feature_cost = 10
 max_feature_cost = 100
 alpha_sat = None
@@ -168,17 +280,23 @@ parser.add_argument("-s", "--start", help="start instance", type=int)
 parser.add_argument("-e", "--end", help="end instance", type=int)
 parser.add_argument("-q", "--skip_quso", help="skip quso", action='store_true')
 parser.add_argument("-p", "--skip_puso", help="skip puso", action='store_true')
+parser.add_argument("-f", "--file", help="file to read results from", type=str)
 
 args = parser.parse_args()
 
-# create results folder if it doesn't exist
-Path("benchmarks\\qaoa-feature-models\\results").mkdir(parents=True, exist_ok=True)
+if not args.file:
+    # create results folder if it doesn't exist
+    Path("benchmarks\\qaoa-feature-models\\results").mkdir(parents=True, exist_ok=True)
 
-# get problem instances from dimacs files
-np.random.seed(42)
-instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
-                                              min_feature_cost, max_feature_cost, alpha_sat) for i in
-             range(args.start, args.end + 1)]
+    # get problem instances from dimacs files
+    np.random.seed(42)
+    instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
+                                                  min_feature_cost, max_feature_cost, alpha_sat) for i in
+                 range(args.start, args.end + 1)]
 
-# run the algorithm for the instances
-run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso)
+    # run the algorithm for the instances
+    run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso)
+
+else:
+    df = pd.read_csv(args.file)
+    df = df.drop(columns=['Unnamed: 0'])
