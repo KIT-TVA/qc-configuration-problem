@@ -204,6 +204,8 @@ def get_probability_dict(row: pd.Series, puso: bool = True) -> dict:
     probability_dict = {}
     for config_probability_pair in probabilities_str:
         config_probability_pair = config_probability_pair.split(":")
+        if len(config_probability_pair) != 2:
+            continue
         config = config_probability_pair[0]
         probability = float(config_probability_pair[1])
         probability_dict[config] = probability
@@ -218,6 +220,8 @@ def get_result_quality(row: pd.Series, puso: bool = True) -> float:
         :param puso: Whether to get the result quality for the puso or quso hamiltonian
     """
     probabilities = get_probability_dict(row, puso)
+    if len(probabilities) == 0:
+        return -1
     valid_configs = get_valid_configs_sorted_by_cost(row)
 
     result_quality = 0
@@ -298,6 +302,40 @@ def rank_biased_overlap(first_rank: list, second_rank: list, p: float) -> float:
     return (x_k / k) * (p ** k) + (1 - p) / p * summation
 
 
+def process_results(df: pd.DataFrame) -> pd.DataFrame:
+    """
+        Processes the results of the given dataframe and saves the processed results in a new dataframe
+
+        :param df: The dataframe to process the results for
+    """
+    processed_dataframe = pd.DataFrame(columns=['n_features', 'n_clauses', 'min_literals_per_clause',
+                                                'max_literals_per_clause', 'result_quality_puso', 'result_quality_quso',
+                                                'probability_of_best_1_config_puso',
+                                                'probability_of_best_1_config_quso',
+                                                'probability_of_best_3_configs_puso',
+                                                'probability_of_best_3_configs_quso', 'rbo_puso', 'rbo_quso'])
+
+    for index, row in df.iterrows():
+        processed_dataframe = pd.concat([processed_dataframe, pd.DataFrame(
+            {'n_features': row['n_features'],
+             'n_clauses': row['n_clauses'],
+             'min_literals_per_clause': row['min_literals_per_clause'],
+             'max_literals_per_clause': row['max_literals_per_clause'],
+             'result_quality_puso': get_result_quality(row, puso=True),
+             'result_quality_quso': get_result_quality(row, puso=False),
+             'probability_of_best_1_config_puso': get_probability_of_best_n_configs(row, 1, puso=True),
+             'probability_of_best_1_config_quso': get_probability_of_best_n_configs(row, 1, puso=False),
+             'probability_of_best_3_configs_puso': get_probability_of_best_n_configs(row, 3, puso=True),
+             'probability_of_best_3_configs_quso': get_probability_of_best_n_configs(row, 3, puso=False),
+             'rbo_puso': rank_biased_overlap(get_n_most_probable_configs(row, 3, puso=True),
+                                             get_valid_configs_sorted_by_cost(row), 0.9),
+             'rbo_quso': rank_biased_overlap(get_n_most_probable_configs(row, 3, puso=False),
+                                             get_valid_configs_sorted_by_cost(row), 0.9)}, index=[0])],
+            ignore_index=True)
+
+    return processed_dataframe
+
+
 min_feature_cost = 10
 max_feature_cost = 100
 alpha_sat = None
@@ -329,3 +367,5 @@ if not args.file:
 else:
     df = pd.read_csv(args.file)
     df = df.drop(columns=['Unnamed: 0'])
+    processed_df = process_results(df)
+    processed_df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\processed_results.csv")
