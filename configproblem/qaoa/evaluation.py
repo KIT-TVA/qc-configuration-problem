@@ -197,9 +197,9 @@ def get_probability_dict(row: pd.Series, puso: bool = True) -> dict:
         :param puso: Whether to get the probability dictionaries for the puso or quso hamiltonian
     """
     if puso:
-        probabilities_str = re.sub("[\{\} ']", "", row["probabilities_puso"]).split(",")
+        probabilities_str = re.sub("[{} ']", "", row["probabilities_puso"]).split(",")
     else:
-        probabilities_str = re.sub("[\{\} ']", "", row["probabilities_quso"]).split(",")
+        probabilities_str = re.sub("[{} ']", "", row["probabilities_quso"]).split(",")
 
     probability_dict = {}
     for config_probability_pair in probabilities_str:
@@ -267,6 +267,35 @@ def get_n_most_probable_configs(row: pd.Series, n: int, puso: bool = True) -> li
         probabilities.pop(max(probabilities, key=probabilities.get))
 
     return n_most_probable_configs
+
+
+def rank_biased_overlap(first_rank: list, second_rank: list, p: float) -> float:
+    """
+        Returns the rank biased overlap for the given ranks as described in Eq. 23 of the following paper:
+        Webber, W., Moffat, A. and Zobel, J., 2010. A similarity measure for
+        indefinite rankings. ACM Transactions on Information Systems (TOIS),
+        28(4), pp.1-38.
+        http://www.williamwebber.com/research/papers/wmz10_tois.pdf
+
+        :param p: The p value of the rank biased overlap
+        :param first_rank: The first rank
+        :param second_rank: The second rank
+    """
+    assert 0 <= p <= 1
+    assert len(first_rank) == len(set(first_rank))
+    assert len(second_rank) == len(set(second_rank))
+
+    if not first_rank and not second_rank:
+        return 1  # both lists are empty
+
+    k = max(len(first_rank), len(second_rank))
+    x_k = len(set(first_rank).intersection(set(second_rank)))
+    summation = 0
+    for d in range(1, k + 1):
+        x_d = len(set(first_rank[:d]).intersection(set(second_rank[:d])))
+        summation += x_d / d * p ** d
+
+    return (x_k / k) * (p ** k) + (1 - p) / p * summation
 
 
 min_feature_cost = 10
