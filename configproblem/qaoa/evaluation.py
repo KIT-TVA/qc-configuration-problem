@@ -226,7 +226,7 @@ def get_result_quality(row: pd.Series, puso: bool = True) -> float:
 
     result_quality = 0
     for config in valid_configs:
-        result_quality += probabilities[config] * 2**int(row["n_features"]) / len(valid_configs)
+        result_quality += probabilities[config] * 2 ** int(row["n_features"]) / len(valid_configs)
     return result_quality
 
 
@@ -313,7 +313,10 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
                                                 'probability_of_best_1_config_puso',
                                                 'probability_of_best_1_config_quso',
                                                 'probability_of_best_3_configs_puso',
-                                                'probability_of_best_3_configs_quso', 'rbo_puso', 'rbo_quso'])
+                                                'probability_of_best_3_configs_quso', 'rbo_puso', 'rbo_quso',
+                                                'execution_time_puso', 'execution_time_quso',
+                                                'problem_circuit_depth_puso', 'problem_circuit_depth_quso',
+                                                'circuit_width_puso', 'circuit_width_quso'])
 
     for index, row in df.iterrows():
         processed_dataframe = pd.concat([processed_dataframe, pd.DataFrame(
@@ -330,8 +333,14 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
              'rbo_puso': rank_biased_overlap(get_n_most_probable_configs(row, 3, puso=True),
                                              get_valid_configs_sorted_by_cost(row), 0.9),
              'rbo_quso': rank_biased_overlap(get_n_most_probable_configs(row, 3, puso=False),
-                                             get_valid_configs_sorted_by_cost(row), 0.9)}, index=[0])],
-            ignore_index=True)
+                                             get_valid_configs_sorted_by_cost(row), 0.9),
+             'execution_time_puso': row['execution_time_puso'],
+             'execution_time_quso': row['execution_time_quso'],
+             'problem_circuit_depth_puso': row['problem_circuit_depth_puso'],
+             'problem_circuit_depth_quso': row['problem_circuit_depth_quso'],
+             'circuit_width_puso': row['circuit_width_puso'],
+             'circuit_width_quso': row['circuit_width_quso']}, index=[0])],
+                                        ignore_index=True)
 
     return processed_dataframe
 
