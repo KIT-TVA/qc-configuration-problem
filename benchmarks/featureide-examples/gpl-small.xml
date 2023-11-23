@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<featureModel>
+	<properties>
+		<calculations key="tautology" value="true"/>
+		<calculations key="auto" value="true"/>
+		<graphics key="showconstraints" value="true"/>
+		<calculations key="redundant" value="true"/>
+		<graphics key="showshortnames" value="false"/>
+		<graphics key="layout" value="horizontal"/>
+		<graphics key="legendhidden" value="false"/>
+		<graphics key="layoutalgorithm" value="1"/>
+		<calculations key="features" value="true"/>
+		<graphics key="autolayoutconstraints" value="false"/>
+		<graphics key="legendautolayout" value="true"/>
+		<graphics key="showcollapsedconstraints" value="true"/>
+		<calculations key="constraints" value="true"/>
+	</properties>
+	<struct>
+		<and abstract="true" mandatory="true" name="GPL">
+			<and abstract="true" mandatory="true" name="MainGpl">
+				<graphics key="collapsed" value="false"/>
+				<and abstract="true" hidden="true" mandatory="true" name="Driver">
+					<graphics key="collapsed" value="false"/>
+					<and abstract="true" mandatory="true" name="DriverProg">
+						<graphics key="collapsed" value="true"/>
+						<feature mandatory="true" name="Prog"/>
+						<feature mandatory="true" name="Benchmark"/>
+					</and>
+				</and>
+				<or abstract="true" mandatory="true" name="Alg">
+					<graphics key="collapsed" value="false"/>
+					<feature name="Number"/>
+					<feature name="Connected"/>
+					<and abstract="true" name="StrongConnect">
+						<graphics key="collapsed" value="true"/>
+						<feature mandatory="true" name="Transpose"/>
+						<feature mandatory="true" name="StronglyConnected"/>
+					</and>
+					<feature name="Cycle"/>
+					<feature name="MSTPrim"/>
+					<feature name="MSTKruskal"/>
+					<feature name="ShortestPath"/>
+				</or>
+				<alt abstract="true" name="Src">
+					<graphics key="collapsed" value="true"/>
+					<feature name="BFS"/>
+					<feature name="DFS"/>
+				</alt>
+				<alt abstract="true" mandatory="true" name="Wgt">
+					<graphics key="collapsed" value="true"/>
+					<feature name="Weighted"/>
+					<feature name="Unweighted"/>
+				</alt>
+				<alt abstract="true" mandatory="true" name="Gtp">
+					<graphics key="collapsed" value="true"/>
+					<feature name="Directed"/>
+					<feature name="Undirected"/>
+				</alt>
+			</and>
+		</and>
+	</struct>
+	<constraints>
+		<rule>
+			<imp>
+				<var>Number</var>
+				<conj>
+					<var>Gtp</var>
+					<var>Src</var>
+				</conj>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>Connected</var>
+				<conj>
+					<var>Undirected</var>
+					<var>Src</var>
+				</conj>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>StrongConnect</var>
+				<conj>
+					<var>Directed</var>
+					<var>DFS</var>
+				</conj>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>Cycle</var>
+				<conj>
+					<var>Gtp</var>
+					<var>DFS</var>
+				</conj>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<disj>
+					<var>MSTKruskal</var>
+					<var>MSTPrim</var>
+				</disj>
+				<conj>
+					<var>Undirected</var>
+					<var>Weighted</var>
+				</conj>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<disj>
+					<var>MSTKruskal</var>
+					<var>MSTPrim</var>
+				</disj>
+				<not>
+					<conj>
+						<var>MSTKruskal</var>
+						<var>MSTPrim</var>
+					</conj>
+				</not>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>ShortestPath</var>
+				<conj>
+					<var>Directed</var>
+					<var>Weighted</var>
+				</conj>
+			</imp>
+		</rule>
+	</constraints>
+	<comments>
+		<c>* GPL domain model February 2005 *</c>
+		<c>grammar</c>
+		<c>constraint</c>
+		<c>formatting</c>
+		<c>ShortestPath { out="Shortest" }</c>
+		<c>Unweighted { out="" }</c>
+	</comments>
+</featureModel>

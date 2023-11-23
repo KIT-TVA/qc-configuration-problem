@@ -1,5 +1,7 @@
 from enum import Enum
 import itertools
+from typing import Dict, Tuple
+
 from .cnf import CNF, Clause, Symbol
 
 from sympy.logic.boolalg import to_cnf
@@ -79,7 +81,9 @@ class Feature:
             n += self.count_features(child, n)
         return n
 
-    def get_all_features(self, feature=None, features=set([])):
+    def get_all_features(self, feature=None, features=None):
+        if features is None:
+            features = set([])
         if feature is None:
             feature = self
         
@@ -89,7 +93,7 @@ class Feature:
 
         return features
 
-    def build_cnf(self, constraints=None) -> CNF:
+    def build_cnf(self, constraints=None) -> Tuple[CNF, Dict[str, int]]:
         """ Construct a CNF based on the FeatureIDE code at:
             https://github.com/FeatureIDE/FeatureIDE/plugins/de.ovgu.featureide.fm.core/src/de/ovgu/featureide/fm/core/analysis/cnf/CNFCreator.java
         """

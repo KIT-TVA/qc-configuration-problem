@@ -48,8 +48,8 @@ class Clause:
                 self.symbols.add(Symbol(symbol))
         elif type(symbol) is Symbol:
             self.symbols.add(symbol)
-        else:
-            warnings.warn(f"Cannot add symbol '{symbol}' of type {type(symbol)} to clause!")
+        # else:
+            # warnings.warn(f"Cannot add symbol '{symbol}' of type {type(symbol)} to clause!")
 
     def add_symbols(self, symbols):
         try:
@@ -107,11 +107,12 @@ class CNF:
 
     def add_clause(self, clause):
         if type(clause) is not Clause:
-            warnings.warn(f"Cannot add clause '{clause}' of type {type(clause)} to clause! Only Clause types can be added.")
+            # warnings.warn(f"Cannot add clause '{clause}' of type {type(clause)} to clause! Only Clause types can be added.")
             return
 
         if clause in self.clauses:
-            warnings.warn(f"Will not add clause {clause} because it is already contained in the CNF!")
+            # warnings.warn(f"Will not add clause {clause} because it is already contained in the CNF!")
+            return
 
         self.clauses.add(clause)
 
@@ -288,7 +289,7 @@ class CNF:
                 
             problem.append(problem_clause)
         
-        return problem
+        return problem, symbol_index
 
     def from_dimacs(self, dimacs_reader: dimacs_reader.DimacsReader):
         cnf = CNF()

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<featureModel>
+	<properties>
+		<calculations key="tautology" value="true"/>
+		<calculations key="auto" value="true"/>
+		<graphics key="showconstraints" value="true"/>
+		<calculations key="redundant" value="true"/>
+		<graphics key="showshortnames" value="false"/>
+		<graphics key="layout" value="horizontal"/>
+		<graphics key="legendhidden" value="false"/>
+		<graphics key="layoutalgorithm" value="1"/>
+		<calculations key="features" value="true"/>
+		<graphics key="autolayoutconstraints" value="false"/>
+		<graphics key="legendautolayout" value="true"/>
+		<graphics key="showcollapsedconstraints" value="true"/>
+		<calculations key="constraints" value="true"/>
+	</properties>
+	<struct>
+		<and abstract="true" mandatory="true" name="VncViewer">
+			<or abstract="true" mandatory="true" name="Opt">
+				<graphics key="collapsed" value="false"/>
+				<and abstract="true" name="OptionsMenuFeatures">
+					<graphics key="collapsed" value="false"/>
+					<feature mandatory="true" name="OptionsFeat"/>
+				</and>
+				<or abstract="true" name="BOpt">
+					<graphics key="collapsed" value="false"/>
+					<feature name="RecordButtonFeat"/>
+					<feature name="ClipboardButtonFeat"/>
+					<feature name="OptionsButtonFeat"/>
+				</or>
+				<feature name="ClipboardFeat"/>
+				<feature name="RecordingFeat"/>
+			</or>
+		</and>
+	</struct>
+	<constraints>
+		<rule>
+			<imp>
+				<var>RecordButtonFeat</var>
+				<var>RecordingFeat</var>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>OptionsButtonFeat</var>
+				<var>OptionsFeat</var>
+			</imp>
+		</rule>
+		<rule>
+			<imp>
+				<var>ClipboardButtonFeat</var>
+				<var>ClipboardFeat</var>
+			</imp>
+		</rule>
+	</constraints>
+	<comments>
+		<c>non-grammar constraints</c>
+		<c>annotations</c>
+		<c>Type { disp="TightVNC" }</c>
+		<c>Opt { disp="Options" }</c>
+		<c>MOpt { disp="Menu Option" }</c>
+		<c>BOpt { disp="Button Option" }</c>
+		<c>OpSubFeat { disp="Hidden" }</c>
+	</comments>
+</featureModel>

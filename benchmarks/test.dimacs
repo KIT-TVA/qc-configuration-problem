@@ -1,7 +1,5 @@
-c example DIMACS-CNF 3-SAT
-p cnf 3 5
--1 -2 -3 0
-1 -2 3 0
-1 2 -3 0
-1 -2 -3 0
--1 2 3 0
+c 1 Sandwich
+c 2 Bread
+p cnf 2 2
+1 0
+1 -2 0

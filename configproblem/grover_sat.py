@@ -245,7 +245,7 @@ def diffuser(nqubits) -> Gate:
     return U_s
 
 
-def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit, QuantumCircuit]:
+def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[QuantumCircuit, QuantumCircuit]:
     """
         Creates an circuit for the SAT problem instance and applies Grover k times
     """
@@ -267,7 +267,7 @@ def create_ksat_grover(problem: List[List[Tuple[int, bool]]], k) -> Tuple[Quantu
     main_qc.measure(register_map, register_map)
 #     main_qc.measure_all()
     
-    return main_qc, qc_oracle, main_qc_pre_meas
+    return main_qc, qc_oracle
 
 
 def calc_statevector_from(counts, width=None):
@@ -309,17 +309,18 @@ def create_grover_for_model(rel_path, k=1):
         feature_model, constraints = reader.readModel(some_model_path)
         # transform to cnf and then to problem
         feature_cnf = feature_model.build_cnf(constraints)
-        print(feature_cnf)
-        problem = feature_cnf.to_problem()
+        problem, feature_names = feature_cnf.to_problem()
+        main, oracle = create_ksat_grover(problem, k)
+        return main, feature_names
     
     elif rel_path.split('.')[-1] in ["dimacs", "cnf"]:
         rd = DimacsReader()
         rd.fromFile(some_model_path)
         problem = CNF().from_dimacs(rd).to_problem()
-    
-    # create grover circuit
-    _, _, pre_measure_qc = create_ksat_grover(problem, k) # Create the circuit
-    return pre_measure_qc
+        main, oracle = create_ksat_grover(problem[0], k)
+        return main, problem[1]
+    else:
+        return None, None
 
 
 def collect_circuit_info(circuit, backend="aer_simulator", shots=100, simulate=False):

@@ -186,6 +186,7 @@ class TestSATOracle(unittest.TestCase):
         self.assert_operation_statevecs(
             clause_oracle_expected_statevec_mapping2, ksat_op, inp_reg3, tar_reg, ancilla_reg2)
 
+
     def test_ksat_grover(self):
         problem = [[(2, True)], [(0, True),(1, False)]]
 

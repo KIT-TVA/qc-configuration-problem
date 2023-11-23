@@ -1,0 +1,21 @@
+c 1 Sandwich
+c 2 Bread
+c 3 Full Grain
+c 4 Toast
+c 5 Meat
+c 6 Salami
+c 7 Ham
+p cnf 7 13
+1 0
+-2 1 0
+-5 1 0
+2 -1 0
+2 -3 0
+2 -4 0
+-2 3 4 0
+-3 -4 0
+5 -6 0
+-7 5 0
+7 -5 6 0
+3 -6 0
+-3 -7 0

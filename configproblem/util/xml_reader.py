@@ -173,17 +173,28 @@ class Extended_Modelreader:
 
     def handle_double_constraints(self, xml):
         """Descends into the constraint structure in an Left-Right-Operate fashion"""
-        left_hand_side = self.traverse_constraints(xml[0])
-        right_hand_side = self.traverse_constraints(xml[1])
-
-        if xml.tag == XMLT.IMP:
-            return Implies(left_hand_side, right_hand_side)
-        elif xml.tag == XMLT.EQ:
-            return Equivalent(left_hand_side, right_hand_side)
-        elif xml.tag == XMLT.CONJ:
-            return And(left_hand_side, right_hand_side)
-        elif xml.tag == XMLT.DISJ:
-            return Or(left_hand_side, right_hand_side)
+        if len(xml) == 2:
+            left_hand_side = self.traverse_constraints(xml[0])
+            right_hand_side = self.traverse_constraints(xml[1])
+            if xml.tag == XMLT.IMP:
+                return Implies(left_hand_side, right_hand_side)
+            elif xml.tag == XMLT.EQ:
+                return Equivalent(left_hand_side, right_hand_side)
+            elif xml.tag == XMLT.CONJ:
+                return And(left_hand_side, right_hand_side)
+            elif xml.tag == XMLT.DISJ:
+                return Or(left_hand_side, right_hand_side)
+            else:
+                raise RuntimeError(f"Encountered unexpected XML tag in constraints: {xml.tag}")
+        elif len(xml) == 1:
+            left_hand_side = self.traverse_constraints(xml[0])
+            if xml.tag == XMLT.CONJ:
+                return left_hand_side
+            elif xml.tag == XMLT.DISJ:
+                return left_hand_side
+            else:
+                raise RuntimeError(f"Encountered unexpected XML tag in constraints: {xml.tag}")
         else:
-            raise RuntimeError(f"Encountered unexpected XML tag in constraints: {xml.tag}")
+            raise RuntimeError(f"Encountered invalid XML tag length in constraints: {xml.tag}")
+
 

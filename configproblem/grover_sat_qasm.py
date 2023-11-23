@@ -16,7 +16,7 @@ from configproblem.util.dimacs_reader import DimacsReader
 from configproblem.util.cnf import CNF
 from configproblem.util.qasm3 import QASM3
 
-from fragments.quantum_states_qasm import add_all_hadamards
+from configproblem.fragments.quantum_states_qasm import add_all_hadamards
 
 np.set_printoptions(threshold=1e6)
 
@@ -289,20 +289,3 @@ def get_circuit_depth_qasm(qasm: str):
             case r'qubit\[(\d+)\].*' as m:
                 qubits += int(m[1])
     return qubits
-
-def collect_circuit_info(circuit, backend="aer_simulator", shots=100, simulate=False):
-    # transpile and collect meta data
-    info = {}
-    simulator = Aer.get_backend(backend)
-    transpiled_grover_circuit = transpile(circuit, backend=simulator)
-    info['depth'] = transpiled_grover_circuit.depth()
-    info['width'] = transpiled_grover_circuit.num_qubits
-
-    # print(f"Circuit depth: {transpiled_grover_circuit.depth()}gates - width: {transpiled_grover_circuit.num_qubits}qubits")
-
-    # try to run/simulate
-    if simulate:
-        results = simulator.run(transpiled_grover_circuit, shots=shots).result()
-        info['counts'] = results.get_counts()
-
-    return info

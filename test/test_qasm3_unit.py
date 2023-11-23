@@ -4,8 +4,8 @@ from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit import Gate, Qubit
 from qiskit.quantum_info import Statevector
 
-import grover_sat_qasm_new as gsq
-import grover_sat as gs
+import configproblem.grover_sat_qasm_new as gsq
+import configproblem.grover_sat as gs
 
 from configproblem.util.qasm3 import QASM3
 
