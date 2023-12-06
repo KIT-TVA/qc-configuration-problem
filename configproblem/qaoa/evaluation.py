@@ -42,6 +42,7 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
         :param instance: The instance to run the algorithm for
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
+        :param skip: Whether to skip running the algorithm for the puso hamiltonian
     """
     hamiltonian = instance.get_puso_combined_hamiltonian()
 
@@ -143,7 +144,8 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
 
 
 def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str,
-                                   skip_quso: bool = False, skip_puso: bool = False):
+                                   skip_quso: bool = False, skip_puso: bool = False,
+                                   save_individual_results: bool = False) -> None:
     """
         Runs the QAOA algorithm for the given instances and returns the results as a dataframe
 
@@ -151,10 +153,16 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
+        :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
+        :param save_individual_results: Whether to save the results for each instance individually
     """
+    results = pd.DataFrame()
     for index, instance in enumerate(instances):
         df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso)])
-        df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
+        if save_individual_results:
+            df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
+        results = pd.concat([results, df], ignore_index=True)
+    results.to_csv(f"benchmarks\\qaoa-feature-models\\results\\all_results.csv")
     return
 
 
@@ -212,9 +220,9 @@ def get_probability_dict(row: pd.Series, puso: bool = True) -> dict:
     return probability_dict
 
 
-def get_result_quality(row: pd.Series, puso: bool = True) -> float:
+def get_validity_quality(row: pd.Series, puso: bool = True) -> float:
     """
-        Returns the result quality for the given row of the dataframe
+        Returns the validity quality for the given row of the dataframe
 
         :param row: The row of the dataframe to get the result quality for
         :param puso: Whether to get the result quality for the puso or quso hamiltonian
@@ -224,10 +232,10 @@ def get_result_quality(row: pd.Series, puso: bool = True) -> float:
         return float('nan')
     valid_configs = get_valid_configs_sorted_by_cost(row)
 
-    result_quality = 0
+    validity_quality = 0
     for config in valid_configs:
-        result_quality += probabilities[config] * 2 ** int(row["n_features"]) / len(valid_configs)
-    return result_quality
+        validity_quality += probabilities[config] * 2 ** int(row["n_features"]) / len(valid_configs)
+    return validity_quality
 
 
 def get_probability_of_best_n_configs(row: pd.Series, n: int, puso: bool = True) -> float:
@@ -310,33 +318,40 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
 
         :param df: The dataframe to process the results for
     """
-    processed_dataframe = pd.DataFrame(columns=['n_features', 'n_clauses', 'min_literals_per_clause',
-                                                'max_literals_per_clause', 'n_valid_configs',
-                                                'result_quality_puso', 'result_quality_quso',
-                                                'probability_of_best_1_config_puso',
-                                                'probability_of_best_1_config_quso',
-                                                'probability_of_best_5_configs_puso',
-                                                'probability_of_best_5_configs_quso', 'rbo_puso', 'rbo_quso',
-                                                'execution_time_puso', 'execution_time_quso',
-                                                'problem_circuit_depth_puso', 'problem_circuit_depth_quso',
-                                                'circuit_width_puso', 'circuit_width_quso'])
+    processed_dataframe = pd.DataFrame()
 
     for index, row in df.iterrows():
+        avg_valid_probability_puso = (get_probability_of_best_n_configs(row, len(get_valid_configs_sorted_by_cost(row)),
+                                                                        puso=True) /
+                                      len(get_valid_configs_sorted_by_cost(row)))
+        avg_valid_probability_quso = (get_probability_of_best_n_configs(row, len(get_valid_configs_sorted_by_cost(row)),
+                                                                        puso=False) /
+                                      len(get_valid_configs_sorted_by_cost(row)))
+
+        most_probable_configs_list_puso = get_n_most_probable_configs(row, len(get_valid_configs_sorted_by_cost(row)),
+                                                                      puso=True)
+        most_probable_configs_list_quso = get_n_most_probable_configs(row, len(get_valid_configs_sorted_by_cost(row)),
+                                                                      puso=False)
+
         processed_dataframe = pd.concat([processed_dataframe, pd.DataFrame(
             {'n_features': row['n_features'],
              'n_clauses': row['n_clauses'],
              'min_literals_per_clause': row['min_literals_per_clause'],
              'max_literals_per_clause': row['max_literals_per_clause'],
              'n_valid_configs': len(get_valid_configs_sorted_by_cost(row)),
-             'result_quality_puso': get_result_quality(row, puso=True),
-             'result_quality_quso': get_result_quality(row, puso=False),
-             'probability_of_best_1_config_puso': get_probability_of_best_n_configs(row, 1, puso=True),
-             'probability_of_best_1_config_quso': get_probability_of_best_n_configs(row, 1, puso=False),
-             'probability_of_best_5_configs_puso': get_probability_of_best_n_configs(row, 5, puso=True),
-             'probability_of_best_5_configs_quso': get_probability_of_best_n_configs(row, 5, puso=False),
-             'rbo_puso': rank_biased_overlap(get_n_most_probable_configs(row, 5, puso=True),
+             'validity_quality_puso': get_validity_quality(row, puso=True),
+             'validity_quality_quso': get_validity_quality(row, puso=False),
+             'cost_quality_top_1_puso': get_probability_of_best_n_configs(row, 1, puso=True) / 1 /
+                                        avg_valid_probability_puso,
+             'cost_quality_top_1_quso': get_probability_of_best_n_configs(row, 1, puso=False) / 1 /
+                                        avg_valid_probability_quso,
+             'cost_quality_top_5_puso': get_probability_of_best_n_configs(row, 5, puso=True) / 5 /
+                                        avg_valid_probability_puso,
+             'cost_quality_top_5_quso': get_probability_of_best_n_configs(row, 5, puso=False) / 5 /
+                                        avg_valid_probability_quso,
+             'rbo_puso': rank_biased_overlap(most_probable_configs_list_puso,
                                              get_valid_configs_sorted_by_cost(row), 0.9),
-             'rbo_quso': rank_biased_overlap(get_n_most_probable_configs(row, 5, puso=False),
+             'rbo_quso': rank_biased_overlap(most_probable_configs_list_quso,
                                              get_valid_configs_sorted_by_cost(row), 0.9),
              'execution_time_puso': row['execution_time_puso'],
              'execution_time_quso': row['execution_time_quso'],
@@ -356,10 +371,11 @@ layers = 40
 strategy = 'avg'
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--start", help="start instance", type=int)
-parser.add_argument("-e", "--end", help="end instance", type=int)
-parser.add_argument("-q", "--skip_quso", help="skip quso", action='store_true')
-parser.add_argument("-p", "--skip_puso", help="skip puso", action='store_true')
+parser.add_argument("--first", help="start instance", type=int)
+parser.add_argument("--last", help="end instance", type=int)
+parser.add_argument("--skip_quso", help="skip quso", action='store_true')
+parser.add_argument("--skip_puso", help="skip puso", action='store_true')
+parser.add_argument("--save-individual-results", help="save individual results", action='store_true')
 parser.add_argument("-f", "--file", help="file to read results from", type=str)
 
 args = parser.parse_args()
@@ -372,10 +388,11 @@ if not args.file:
     np.random.seed(42)
     instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
                                                   min_feature_cost, max_feature_cost, alpha_sat) for i in
-                 range(args.start, args.end + 1)]
+                 range(args.first, args.last + 1)]
 
     # run the algorithm for the instances
-    run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso)
+    run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso,
+                                   save_individual_results=args.save_individual_results)
 
 else:
     df = pd.read_csv(args.file)
