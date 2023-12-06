@@ -541,9 +541,9 @@ class ProblemInstance:
             success_probability += probabilities_dict[config] if config in probabilities_dict else 0
         return success_probability
 
-    def get_result_quality(self, probabilities_dict) -> float:
+    def get_validity_quality(self, probabilities_dict) -> float:
         """
-            Returns the quality of a given result, returns -1 if no valid configs exist
+            Returns the validity quality of a given result, returns -1 if no valid configs exist
 
             :param probabilities_dict: dictionary with probabilities for each configuration
         """
