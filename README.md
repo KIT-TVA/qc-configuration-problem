@@ -47,7 +47,9 @@ to run the QAOA algorithm on a set of DIMACS files and save and process the resu
 ### Notebooks
 
 3. Run the `jupyter notebook` command. A browser window should open up.
-4. In the browser window, navigate to the `configproblem/qaoa` directory and open the notebook you want to run.
+4. In the browser window, navigate to the `configproblem` directory for the notebook about Grover's algorithm 
+   or to the `configproblem/qaoa`directory for the notebooks about QAOA
+   and open the notebook you want to run.
 
 ### Evaluation of QAOA using DIMACS files
 
