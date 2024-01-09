@@ -2,6 +2,7 @@ import numpy as np
 from qubovert import boolean_var, PCBO
 from qubovert.utils import DictArithmetic
 
+from configproblem.util.dimacs_reader import DimacsReader
 from configproblem.util.model_transformation import convert_to_penalty
 
 
@@ -327,6 +328,44 @@ def generate_sat_clause(variables: list[boolean_var], min_clause_length: int, ma
     return clause
 
 
+def get_sat_instance_from_dimacs(dimacs_file_path: str) \
+        -> tuple[list[list[tuple[boolean_var, bool]]], list[boolean_var]]:
+    """
+        Returns a SAT instance from a DIMACS file
+
+        :param dimacs_file_path: path to the DIMACS file
+    """
+    sat_instance = []
+    dimacs_reader = DimacsReader()
+    dimacs_reader.fromFile(dimacs_file_path)
+    boolean_vars = [boolean_var(f"x{i}") for i in range(len(dimacs_reader.getFeatures()))]
+    for clause in dimacs_reader.clauses:
+        sat_clause = []
+        for literal in clause:
+            if literal == 0:
+                break
+            variable = boolean_vars[abs(literal) - 1]
+            is_not_negated = literal >= 0
+            sat_clause.append((variable, is_not_negated))
+        sat_instance.append(sat_clause)
+    return sat_instance, boolean_vars
+
+
+def get_problem_instance_from_dimacs(dimacs_file_path: str, min_feature_cost: int, max_feature_cost: int,
+                                     alpha_sat: float) -> 'ProblemInstance':
+    """
+        Returns a problem instance using a SAT instance from a DIMACS file
+
+        :param dimacs_file_path: path to the DIMACS file
+        :param min_feature_cost: minimum cost of a feature
+        :param max_feature_cost: maximum cost of a feature
+        :param alpha_sat: weight of the SAT part of the objective function
+    """
+    sat_instance, boolean_vars = get_sat_instance_from_dimacs(dimacs_file_path)
+    feature_cost = list(np.random.randint(min_feature_cost, max_feature_cost + 1, size=len(boolean_vars)))
+    return ProblemInstance(sat_instance, boolean_vars, feature_cost, alpha_sat)
+
+
 class ProblemInstance:
     """ Represents a SAT instance with a cost associated with each feature"""
     sat_instance: list[list[tuple[boolean_var, bool]]]
@@ -488,19 +527,30 @@ class ProblemInstance:
     def get_quso_combined_hamiltonian(self) -> DictArithmetic:
         return self.__get_combined_pcbo().to_quso()
 
-    def get_result_quality(self, probabilities_dict) -> float:
+    def get_success_probability(self, probabilities_dict) -> float:
         """
-            Returns the quality of a given result, returns -1 if no valid configs exist
+            Returns the sum of the probabilities for every valid config of a given result,
+            returns -1 if no valid configs exist
 
             :param probabilities_dict: dictionary with probabilities for each configuration
         """
         if len(self.get_valid_configs()) == 0:
             return -1
-        result_quality = 0
+        success_probability = 0
         for config in self.get_valid_configs():
-            result_quality += probabilities_dict[config] if config in probabilities_dict else 0
-        result_quality *= 2 ** self.get_num_features() / len(self.get_valid_configs())
-        return result_quality
+            success_probability += probabilities_dict[config] if config in probabilities_dict else 0
+        return success_probability
+
+    def get_validity_quality(self, probabilities_dict) -> float:
+        """
+            Returns the validity quality of a given result, returns -1 if no valid configs exist
+
+            :param probabilities_dict: dictionary with probabilities for each configuration
+        """
+        if len(self.get_valid_configs()) == 0:
+            return -1
+        success_probability = self.get_success_probability(probabilities_dict)
+        return success_probability * (2 ** self.get_num_features() / len(self.get_valid_configs()))
 
     def convert_solution_dict(self, solution_dict: dict, hamiltonian_type: str) -> dict:
         """

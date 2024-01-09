@@ -56,6 +56,7 @@ class DimacsReader():
                         self.nClauses = int(m.group(2))
                         self.clauses = [list(map(int, line.split(' '))) for line in lines]
                         break
+        f.close()
 
     def getFeatures(self):
         return self.features.values()
