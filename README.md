@@ -37,7 +37,8 @@ to run the QAOA algorithm on a set of DIMACS files and save and process the resu
 
 ## Grover's Algorithm
 
-**TODO**
+This repository contains code and data for applying Grover's Algorithm to retrieve uniform random configuration samples.
+See the Jupyter notebook [grover_sat.ipynb](configproblem/grover_sat.ipynb).
 
 ## Usage
 
@@ -53,7 +54,7 @@ to run the QAOA algorithm on a set of DIMACS files and save and process the resu
 
 ### Evaluation of QAOA using DIMACS files
 
-3. Run `python -m configproblem.qaoa.evaluation <args>` with the following arguments:
+Run `python -m configproblem.qaoa.evaluation <args>` with the following arguments:
    - `--first <index>` - Index of the first file to evaluate
    - `--last <index>` - Index of the last file to evaluate
    - `--skip-quso` - Skip running QAOA for the QUSO/QUBO formulation
