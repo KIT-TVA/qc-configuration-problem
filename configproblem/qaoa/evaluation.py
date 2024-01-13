@@ -13,7 +13,9 @@ from configproblem.util.hamiltonian_math import get_hamiltonian_dimension
 from configproblem.util.problem_instance import ProblemInstance, get_problem_instance_from_dimacs
 from configproblem.qaoa.qaoa_mincost_k_sat import problem_circuit as puso_problem_circuit, convert_ancilla_bit_results
 from configproblem.qaoa.qaoa_mincost_sat import problem_circuit as quso_problem_circuit
+import configproblem.qaoa.qaoa_mixer as mixer
 
+mixer_circuit = mixer.standard_mixer
 theta = {"beta": 0.01, "gamma": -0.01}  # start values for optimization
 use_warmstart = False
 use_optimizer = True
@@ -49,7 +51,7 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, hamiltonian, layers,
+        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, mixer_circuit, hamiltonian, layers,
                                                   get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
                                                   strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
         probabilities_dict = {}
@@ -80,7 +82,7 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, hamiltonian, layers,
+        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit, hamiltonian, layers,
                                                   get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
                                                   strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
         probabilities_dict = {}
