@@ -1,6 +1,5 @@
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
-from qaoa_mincost_k_sat import k_rz_gate
 from qiskit.circuit.library import MCMT, RZGate
 
 
@@ -31,7 +30,7 @@ def grover_mixer(nqubits: int, beta: Parameter) -> QuantumCircuit:
     for i in range(0, nqubits):
         qc_mix.x(i)
 
-    qc_mix += MCMT(RZGate(beta), nqubits - 1, 1, label=None)
+    qc_mix = qc_mix.compose(MCMT(RZGate(2 * beta), nqubits - 1, 1, label=None))
 
     for i in range(0, nqubits):
         qc_mix.x(i)

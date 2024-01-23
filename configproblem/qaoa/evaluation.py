@@ -14,8 +14,10 @@ from configproblem.util.problem_instance import ProblemInstance, get_problem_ins
 from configproblem.qaoa.qaoa_mincost_k_sat import problem_circuit as puso_problem_circuit, convert_ancilla_bit_results
 from configproblem.qaoa.qaoa_mincost_sat import problem_circuit as quso_problem_circuit
 import configproblem.qaoa.qaoa_mixer as mixer
+import configproblem.qaoa.qaoa_parameter_optimization as parameter_optimization
 
 mixer_circuit = mixer.standard_mixer
+parameter_optimization = parameter_optimization.get_optimizer('COBYLA', maxiter=1000, tol=1e-12)
 theta = {"beta": 0.01, "gamma": -0.01}  # start values for optimization
 use_warmstart = False
 use_optimizer = True
@@ -51,9 +53,10 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, mixer_circuit, hamiltonian, layers,
-                                                  get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
-                                                  strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
+        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, mixer_circuit, parameter_optimization,
+                                                  hamiltonian, layers, get_hamiltonian_dimension(hamiltonian), theta,
+                                                  warmstart_statevector, strategy=strategy, use_optimizer=use_optimizer,
+                                                  print_res=print_res)
         probabilities_dict = {}
         for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
             probabilities_dict[(np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian)))] = probabilities[i]
@@ -82,9 +85,10 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit, hamiltonian, layers,
-                                                  get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
-                                                  strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
+        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit,parameter_optimization,
+                                                  hamiltonian, layers, get_hamiltonian_dimension(hamiltonian), theta,
+                                                  warmstart_statevector, strategy=strategy, use_optimizer=use_optimizer,
+                                                  print_res=print_res)
         probabilities_dict = {}
         for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
             probabilities_dict[np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian))] = probabilities[i]
