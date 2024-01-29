@@ -48,8 +48,8 @@ def qaoa_circuit(problem_circuit: Callable, mixer_circuit: Callable, hamiltonian
             else problem_circuit(hamiltonian, nqubits, gamma_list[0])
         qc = qc.compose(qg_problem)
         qc.barrier()
-        qg_mixer = mixer_circuit(nqubits, beta_list[i]) if params_per_layer \
-            else mixer_circuit(nqubits, beta_list[0])
+        qg_mixer = mixer_circuit(nqubits, beta_list[i], amplitude_vector) if params_per_layer \
+            else mixer_circuit(nqubits, beta_list[0], amplitude_vector)
         qc = qc.compose(qg_mixer)
 
     if measure:
