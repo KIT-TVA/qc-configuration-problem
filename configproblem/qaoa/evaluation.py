@@ -19,9 +19,15 @@ from configproblem.qaoa.qaoa_mincost_sat import problem_circuit as quso_problem_
 import configproblem.qaoa.qaoa_mixer as mixer
 import configproblem.qaoa.qaoa_parameter_optimization as parameter_optimization
 
-mixer_circuit = mixer.standard_mixer
+min_feature_cost = 10
+max_feature_cost = 100
+alpha_sat = None
+
+mixer_circuit = mixer.warmstart_mixer
 parameter_optimization = parameter_optimization.get_optimizer('COBYLA', maxiter=1000, tol=1e-12)
+layers = 5
 theta = {"beta": 0.01, "gamma": -0.01}  # start values for optimization
+strategy = 'avg'
 use_warmstart = True
 use_optimizer = True
 print_res = False
@@ -415,12 +421,6 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
 
     return processed_dataframe
 
-
-min_feature_cost = 10
-max_feature_cost = 100
-alpha_sat = None
-layers = 5
-strategy = 'avg'
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--first", help="start instance", type=int)
