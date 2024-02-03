@@ -425,8 +425,8 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
 parser = argparse.ArgumentParser()
 parser.add_argument("--first", help="start instance", type=int)
 parser.add_argument("--last", help="end instance", type=int)
-parser.add_argument("--skip_quso", help="skip quso", action='store_true')
-parser.add_argument("--skip_puso", help="skip puso", action='store_true')
+parser.add_argument("--skip-quso", help="skip quso", action='store_true')
+parser.add_argument("--skip-puso", help="skip puso", action='store_true')
 parser.add_argument("--save-individual-results", help="save individual results", action='store_true')
 parser.add_argument("-f", "--file", help="file to read results from", type=str)
 
