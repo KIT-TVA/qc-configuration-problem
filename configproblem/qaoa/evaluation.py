@@ -6,8 +6,11 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
+from qiskit import transpile
 from qiskit.circuit import Parameter
+from qiskit_aer import StatevectorSimulator
 
+from configproblem.grover_sat import create_ksat_grover, calc_statevector_from
 from configproblem.qaoa.qaoa_application import apply_qaoa_statevector
 from configproblem.util.hamiltonian_math import get_hamiltonian_dimension
 from configproblem.util.problem_instance import ProblemInstance, get_problem_instance_from_dimacs
@@ -19,10 +22,9 @@ import configproblem.qaoa.qaoa_parameter_optimization as parameter_optimization
 mixer_circuit = mixer.standard_mixer
 parameter_optimization = parameter_optimization.get_optimizer('COBYLA', maxiter=1000, tol=1e-12)
 theta = {"beta": 0.01, "gamma": -0.01}  # start values for optimization
-use_warmstart = False
+use_warmstart = True
 use_optimizer = True
 print_res = False
-warmstart_statevector = None
 
 
 def timing_decorator(func):
@@ -39,7 +41,8 @@ def timing_decorator(func):
 
 
 @timing_decorator
-def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
+def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False,
+                  warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its puso hamiltonian and returns the results
 
@@ -47,6 +50,7 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip: Whether to skip running the algorithm for the puso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
     hamiltonian = instance.get_puso_combined_hamiltonian()
 
@@ -71,7 +75,8 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
 
 
 @timing_decorator
-def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
+def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False,
+                  warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its quso hamiltonian and returns the results
 
@@ -79,13 +84,14 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip: Whether to skip running the algorithm for the quso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
     hamiltonian = instance.get_quso_combined_hamiltonian()
 
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit,parameter_optimization,
+        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit, parameter_optimization,
                                                   hamiltonian, layers, get_hamiltonian_dimension(hamiltonian), theta,
                                                   warmstart_statevector, strategy=strategy, use_optimizer=use_optimizer,
                                                   print_res=print_res)
@@ -105,7 +111,7 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
 
 
 def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_quso: bool = False,
-                 skip_puso: bool = False) -> dict:
+                 skip_puso: bool = False, warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance and returns the results
 
@@ -114,9 +120,14 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
         :param strategy: The strategy to use for the algorithm
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
         :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
-    puso_results = run_puso_qaoa(instance, layers, strategy, skip=skip_puso)
-    quso_results = run_quso_qaoa(instance, layers, strategy, skip=skip_quso)
+    print("Running PUSO QAOA")
+    puso_results = run_puso_qaoa(instance, layers, strategy, skip=skip_puso,
+                                 warmstart_statevector=warmstart_statevector)
+    print("Running QUSO QAOA")
+    quso_results = run_quso_qaoa(instance, layers, strategy, skip=skip_quso,
+                                 warmstart_statevector=warmstart_statevector)
 
     min_literals_per_clause = sys.maxsize
     max_literals_per_clause = 0
@@ -149,6 +160,34 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
             'circuit_width_quso': get_hamiltonian_dimension(quso_results['hamiltonian'])}
 
 
+def get_warmstart_statevector_from_grover(instance: ProblemInstance) -> np.ndarray:
+    """
+        Runs the grover algorithm on the SAT instance of the given problem instance
+        and returns the warmstart statevector
+
+        :param instance: The instance to get the warmstart statevector for
+    """
+    sat_problem = instance.get_sat_instance()
+    n_features = instance.get_num_features()
+
+    # convert sat_problem to use integers for variables instead of boolean_var
+    variables = instance.get_boolean_variables()
+    converted_sat_problem = []
+    for clause in sat_problem:
+        converted_clause = []
+        for literal in clause:
+            converted_clause.append((variables.index(literal[0]), literal[1]))
+        converted_sat_problem.append(converted_clause)
+
+    # get the warmstart statevector using the grover algorithm
+    main_qc, qc_oracle = create_ksat_grover(converted_sat_problem, 1)
+
+    transpiled_grover_circuit = transpile(main_qc, StatevectorSimulator())
+    results = StatevectorSimulator().run(transpiled_grover_circuit, shots=1000).result()
+    counts = results.get_counts()
+    return calc_statevector_from(counts, n_features)
+
+
 def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str,
                                    skip_quso: bool = False, skip_puso: bool = False,
                                    save_individual_results: bool = False) -> None:
@@ -164,7 +203,14 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
     """
     results = pd.DataFrame()
     for index, instance in enumerate(instances):
-        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso)])
+        print(f"Running instance {index}")
+        warmstart_statevector = None
+        if use_warmstart:
+            warmstart_statevector = get_warmstart_statevector_from_grover(instance)
+
+        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso,
+                                        warmstart_statevector=warmstart_statevector)])
+
         if save_individual_results:
             df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
         results = pd.concat([results, df], ignore_index=True)
@@ -373,7 +419,7 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
 min_feature_cost = 10
 max_feature_cost = 100
 alpha_sat = None
-layers = 40
+layers = 5
 strategy = 'avg'
 
 parser = argparse.ArgumentParser()
