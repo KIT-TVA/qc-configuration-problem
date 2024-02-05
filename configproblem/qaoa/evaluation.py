@@ -194,7 +194,7 @@ def get_warmstart_statevector_from_grover(instance: ProblemInstance) -> np.ndarr
     return calc_statevector_from(counts, n_features)
 
 
-def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str,
+def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str, results_path: str,
                                    skip_quso: bool = False, skip_puso: bool = False,
                                    save_individual_results: bool = False) -> None:
     """
@@ -203,6 +203,7 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
         :param instances: The instances to run the algorithm for
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
+        :param results_path: The path to save the results to
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
         :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
         :param save_individual_results: Whether to save the results for each instance individually
@@ -213,14 +214,15 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
         warmstart_statevector = None
         if use_warmstart:
             warmstart_statevector = get_warmstart_statevector_from_grover(instance)
+            skip_quso = True  # warmstart does not account for additional ancilla qubits in quso formulation
 
         df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso,
                                         warmstart_statevector=warmstart_statevector)])
 
         if save_individual_results:
-            df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
+            df.to_csv(results_path + f"feature_model_{index}.csv")
         results = pd.concat([results, df], ignore_index=True)
-    results.to_csv(f"benchmarks\\qaoa-feature-models\\results\\all_results.csv")
+    results.to_csv(results_path + "all_results.csv")
     return
 
 
@@ -429,25 +431,34 @@ parser.add_argument("--skip-quso", help="skip quso", action='store_true')
 parser.add_argument("--skip-puso", help="skip puso", action='store_true')
 parser.add_argument("--save-individual-results", help="save individual results", action='store_true')
 parser.add_argument("-f", "--file", help="file to read results from", type=str)
+parser.add_argument("--linux", help="Use linux file paths", action='store_true')
 
 args = parser.parse_args()
 
+if args.linux:
+    base_path = "benchmarks/qaoa-feature-models/"
+    results_path = "results/"
+else:
+    base_path = "benchmarks\\qaoa-feature-models\\"
+    results_path = "results\\"
+
 if not args.file:
     # create results folder if it doesn't exist
-    Path("benchmarks\\qaoa-feature-models\\results").mkdir(parents=True, exist_ok=True)
+    Path(base_path + results_path).mkdir(parents=True, exist_ok=True)
 
     # get problem instances from dimacs files
     np.random.seed(42)
-    instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
-                                                  min_feature_cost, max_feature_cost, alpha_sat) for i in
+    instances = [get_problem_instance_from_dimacs(base_path + f"feature_model_{i}.dimacs", min_feature_cost,
+                                                  max_feature_cost, alpha_sat) for i in
                  range(args.first, args.last + 1)]
 
     # run the algorithm for the instances
     run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso,
-                                   save_individual_results=args.save_individual_results)
+                                   save_individual_results=args.save_individual_results,
+                                   results_path=base_path+results_path)
 
 else:
     df = pd.read_csv(args.file)
     df = df.drop(columns=['Unnamed: 0'])
     processed_df = process_results(df)
-    processed_df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\processed_results.csv")
+    processed_df.to_csv(base_path + results_path + "processed_results.csv")

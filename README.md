@@ -62,6 +62,7 @@ Run `python -m configproblem.qaoa.evaluation <args>` with the following argument
    - `--save-individual-results` - Save the results of each file in a separate file 
       (so you can terminate the program before it finishes)
    - `-f <filename>` - Process the results of a previous run (saved in a file)
+   - `--linux` - Use this flag to use Linux file paths (default is Windows)
 
 DIMACS files have to be placed in the `benchmarks/qaoa-feature-models` directory
 and have to be named `feature_model_<index>.dimacs` where `<index>` is the index of the file.
