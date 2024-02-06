@@ -4,16 +4,16 @@ from qiskit import Aer, transpile
 
 from typing import Dict, List, Tuple
 
+from configproblem.util.xml_reader import Extended_Modelreader
+from configproblem.util.dimacs_reader import DimacsReader
+from configproblem.util.cnf import CNF
+
+from configproblem.fragments.quantum_states import add_all_hadamards
+
 import numpy as np
 import math
 import os
 np.set_printoptions(threshold=1e6)
-
-from util.xml_reader import Extended_Modelreader
-from util.dimacs_reader import DimacsReader
-from util.cnf import CNF
-
-from fragments.quantum_states import add_all_hadamards
 
 
 def create_and_oracle(inp_reg: QuantumRegister, tar: Qubit) -> QuantumCircuit:

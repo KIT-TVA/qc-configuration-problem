@@ -3,7 +3,7 @@ from typing import Callable
 import numpy as np
 from configproblem.qaoa.qaoa_application import apply_qaoa_statevector
 from qubovert.utils import QUSOMatrix
-from configproblem.util.hamiltonian_math import compute_config_energy
+from configproblem.util.hamiltonian_math import compute_config_energy, get_hamiltonian_dimension
 from configproblem.util.visualization import plot_counts_histogram
 
 best_config = "000110"  # 654321
@@ -67,30 +67,36 @@ def deflate_config(hamiltonian: QUSOMatrix, config_str: str, deflation_factor: f
     return hamiltonian + convert_numpy_ndarray_to_quso_matrix(deflation_matrix * deflation_factor)
 
 
-def get_probabilities_dict(problem_circuit: Callable, hamiltonian: QUSOMatrix, nqubits: int) -> dict[str, float]:
+def get_probabilities_dict(problem_circuit: Callable, mixer_circuit: Callable, parameter_optimization: Callable,
+                           hamiltonian: QUSOMatrix, nqubits: int) -> dict[str, float]:
     """
         Calculates the probabilities for all configs of a given hamiltonian.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param mixer_circuit: The function for creating the corresponding mixer quantum circuit
+        :param parameter_optimization: The function for optimizing the parameters of the QAOA circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
     """
-    probabilities, _ = apply_qaoa_statevector(problem_circuit, hamiltonian, print_res=False)
+    probabilities, _ = apply_qaoa_statevector(problem_circuit, mixer_circuit, parameter_optimization, hamiltonian,
+                                              print_res=False)
     probabilities_dict = {}
     for j in range(0, 2 ** nqubits):
         probabilities_dict[(np.binary_repr(j, width=nqubits))] = round(probabilities[j], 4)
     return probabilities_dict
 
 
-def strategy_projection_deflation(problem_circuit: Callable, hamiltonian: QUSOMatrix, nqubits: int,
-                                  output_list_size: int, deflation_factor_start_value: float,
-                                  debug_output: bool = False) -> list[str]:
+def strategy_projection_deflation(problem_circuit: Callable, mixer_circuit: Callable, parameter_optimization: Callable,
+                                  hamiltonian: QUSOMatrix, nqubits: int, output_list_size: int,
+                                  deflation_factor_start_value: float, debug_output: bool = False) -> list[str]:
     """
         Calculates the output list for the given hamiltonian using the projection deflation strategy.
         Projection deflation eliminates the contribution of a state x from the hamiltonian
         by projection the hamiltonian onto the subspace orthogonal to x.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param mixer_circuit: The function for creating the corresponding mixer quantum circuit
+        :param parameter_optimization: The function for optimizing the parameters of the QAOA circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
@@ -104,10 +110,12 @@ def strategy_projection_deflation(problem_circuit: Callable, hamiltonian: QUSOMa
     deflation_factor_value = deflation_factor_start_value
     i = 0
     while i < output_list_size:
-        probabilities_dict = get_probabilities_dict(problem_circuit, current_hamiltonian, nqubits)
+        probabilities_dict = get_probabilities_dict(problem_circuit, mixer_circuit, parameter_optimization,
+                                                    current_hamiltonian, nqubits)
         if debug_output:
             print("Current hamiltonian: " + str(current_hamiltonian))
-            plot_counts_histogram(probabilities_dict, best_config, valid_configs)
+            plot_counts_histogram(probabilities_dict, get_hamiltonian_dimension(hamiltonian), best_config,
+                                  valid_configs)
 
         output_list.append(max(probabilities_dict, key=probabilities_dict.get))
         config_energies.append(compute_config_energy(hamiltonian, [-1 if s == "0" else 1 for s in output_list[-1]]))
@@ -143,7 +151,8 @@ def strategy_projection_deflation(problem_circuit: Callable, hamiltonian: QUSOMa
     return output_list
 
 
-def strategy_variational_quantum_deflation(problem_circuit: Callable, hamiltonian: QUSOMatrix, nqubits: int,
+def strategy_variational_quantum_deflation(problem_circuit: Callable, mixer_circuit: Callable,
+                                           parameter_optimization: Callable, hamiltonian: QUSOMatrix, nqubits: int,
                                            output_list_size: int, deflation_factor_start_value: float,
                                            debug_output: bool = False) -> list[str]:
     """
@@ -153,6 +162,8 @@ def strategy_variational_quantum_deflation(problem_circuit: Callable, hamiltonia
         by introducing an overlap term with all previously found eigenstates.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param mixer_circuit: The function for creating the corresponding mixer quantum circuit
+        :param parameter_optimization: The function for optimizing the parameters of the QAOA circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
@@ -166,10 +177,12 @@ def strategy_variational_quantum_deflation(problem_circuit: Callable, hamiltonia
     i = 0
     while i < output_list_size:
         restart = False
-        probabilities_dict = get_probabilities_dict(problem_circuit, current_hamiltonian, nqubits)
+        probabilities_dict = get_probabilities_dict(problem_circuit, mixer_circuit, parameter_optimization,
+                                                    current_hamiltonian, nqubits)
         if debug_output:
             print("Current hamiltonian: " + str(current_hamiltonian))
-            plot_counts_histogram(probabilities_dict, best_config, valid_configs)
+            plot_counts_histogram(probabilities_dict, get_hamiltonian_dimension(hamiltonian), best_config,
+                                  valid_configs)
 
         current_config = max(probabilities_dict, key=probabilities_dict.get)
         current_config_energy = compute_config_energy(hamiltonian, [-1 if s == "0" else 1 for s in current_config])
@@ -195,13 +208,16 @@ def strategy_variational_quantum_deflation(problem_circuit: Callable, hamiltonia
     return output_list
 
 
-def config_prioritization(problem_circuit: Callable, hamiltonian: QUSOMatrix, nqubits: int, output_list_size: int,
+def config_prioritization(problem_circuit: Callable, mixer_circuit: Callable, parameter_optimization: Callable,
+                          hamiltonian: QUSOMatrix, nqubits: int, output_list_size: int,
                           deflation_factor_start_value: float, strategy='vqd', debug_output: bool = False) -> list[str]:
     """
         Calculates the output list for the given hamiltonian using the given strategy.
         Available strategies are: 'vqd' (variational quantum deflation) and 'pd' (projection deflation).
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param mixer_circuit: The function for creating the corresponding mixer quantum circuit
+        :param parameter_optimization: The function for optimizing the parameters of the QAOA circuit
         :param hamiltonian: the hamiltonian of the optimization problem
         :param nqubits: the number of qubits
         :param output_list_size: the size of the output list
@@ -210,10 +226,12 @@ def config_prioritization(problem_circuit: Callable, hamiltonian: QUSOMatrix, nq
         :param debug_output: whether to print debug output
     """
     if strategy == 'vqd':
-        return strategy_variational_quantum_deflation(problem_circuit, hamiltonian, nqubits, output_list_size,
+        return strategy_variational_quantum_deflation(problem_circuit, mixer_circuit, parameter_optimization,
+                                                      hamiltonian, nqubits, output_list_size,
                                                       deflation_factor_start_value, debug_output=debug_output)
     elif strategy == 'pd':
-        return strategy_projection_deflation(problem_circuit, hamiltonian, nqubits, output_list_size,
-                                             deflation_factor_start_value, debug_output=debug_output)
+        return strategy_projection_deflation(problem_circuit, mixer_circuit, parameter_optimization, hamiltonian,
+                                             nqubits, output_list_size, deflation_factor_start_value,
+                                             debug_output=debug_output)
     else:
         raise ValueError(f"Unsupported strategy: {strategy}")

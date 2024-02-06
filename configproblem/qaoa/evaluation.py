@@ -6,19 +6,31 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
+from qiskit import transpile
 from qiskit.circuit import Parameter
+from qiskit_aer import StatevectorSimulator
 
+from configproblem.grover_sat import create_ksat_grover, calc_statevector_from
 from configproblem.qaoa.qaoa_application import apply_qaoa_statevector
 from configproblem.util.hamiltonian_math import get_hamiltonian_dimension
 from configproblem.util.problem_instance import ProblemInstance, get_problem_instance_from_dimacs
 from configproblem.qaoa.qaoa_mincost_k_sat import problem_circuit as puso_problem_circuit, convert_ancilla_bit_results
 from configproblem.qaoa.qaoa_mincost_sat import problem_circuit as quso_problem_circuit
+import configproblem.qaoa.qaoa_mixer as mixer
+import configproblem.qaoa.qaoa_parameter_optimization as parameter_optimization
 
+min_feature_cost = 10
+max_feature_cost = 100
+alpha_sat = None
+
+mixer_circuit = mixer.warmstart_mixer
+parameter_optimization = parameter_optimization.get_optimizer('COBYLA', maxiter=1000, tol=1e-12)
+layers = 5
 theta = {"beta": 0.01, "gamma": -0.01}  # start values for optimization
-use_warmstart = False
+strategy = 'avg'
+use_warmstart = True
 use_optimizer = True
 print_res = False
-warmstart_statevector = None
 
 
 def timing_decorator(func):
@@ -35,7 +47,8 @@ def timing_decorator(func):
 
 
 @timing_decorator
-def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
+def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False,
+                  warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its puso hamiltonian and returns the results
 
@@ -43,15 +56,17 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip: Whether to skip running the algorithm for the puso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
     hamiltonian = instance.get_puso_combined_hamiltonian()
 
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, hamiltonian, layers,
-                                                  get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
-                                                  strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
+        probabilities, _ = apply_qaoa_statevector(puso_problem_circuit, mixer_circuit, parameter_optimization,
+                                                  hamiltonian, layers, get_hamiltonian_dimension(hamiltonian), theta,
+                                                  warmstart_statevector, strategy=strategy, use_optimizer=use_optimizer,
+                                                  print_res=print_res)
         probabilities_dict = {}
         for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
             probabilities_dict[(np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian)))] = probabilities[i]
@@ -66,7 +81,8 @@ def run_puso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
 
 
 @timing_decorator
-def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False) -> dict:
+def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=False,
+                  warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance using its quso hamiltonian and returns the results
 
@@ -74,15 +90,17 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
         :param skip: Whether to skip running the algorithm for the quso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
     hamiltonian = instance.get_quso_combined_hamiltonian()
 
     if skip:
         probabilities_dict = {}
     else:
-        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, hamiltonian, layers,
-                                                  get_hamiltonian_dimension(hamiltonian), theta, warmstart_statevector,
-                                                  strategy=strategy, use_optimizer=use_optimizer, print_res=print_res)
+        probabilities, _ = apply_qaoa_statevector(quso_problem_circuit, mixer_circuit, parameter_optimization,
+                                                  hamiltonian, layers, get_hamiltonian_dimension(hamiltonian), theta,
+                                                  warmstart_statevector, strategy=strategy, use_optimizer=use_optimizer,
+                                                  print_res=print_res)
         probabilities_dict = {}
         for i in range(0, 2 ** get_hamiltonian_dimension(hamiltonian)):
             probabilities_dict[np.binary_repr(i, width=get_hamiltonian_dimension(hamiltonian))] = probabilities[i]
@@ -99,7 +117,7 @@ def run_quso_qaoa(instance: ProblemInstance, layers: int, strategy: str, skip=Fa
 
 
 def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_quso: bool = False,
-                 skip_puso: bool = False) -> dict:
+                 skip_puso: bool = False, warmstart_statevector: np.ndarray = None) -> dict:
     """
         Runs the QAOA algorithm for the given instance and returns the results
 
@@ -108,9 +126,14 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
         :param strategy: The strategy to use for the algorithm
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
         :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
+        :param warmstart_statevector: The warmstart statevector to use
     """
-    puso_results = run_puso_qaoa(instance, layers, strategy, skip=skip_puso)
-    quso_results = run_quso_qaoa(instance, layers, strategy, skip=skip_quso)
+    print("Running PUSO QAOA")
+    puso_results = run_puso_qaoa(instance, layers, strategy, skip=skip_puso,
+                                 warmstart_statevector=warmstart_statevector)
+    print("Running QUSO QAOA")
+    quso_results = run_quso_qaoa(instance, layers, strategy, skip=skip_quso,
+                                 warmstart_statevector=warmstart_statevector)
 
     min_literals_per_clause = sys.maxsize
     max_literals_per_clause = 0
@@ -143,7 +166,35 @@ def run_instance(instance: ProblemInstance, layers: int, strategy: str, skip_qus
             'circuit_width_quso': get_hamiltonian_dimension(quso_results['hamiltonian'])}
 
 
-def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str,
+def get_warmstart_statevector_from_grover(instance: ProblemInstance) -> np.ndarray:
+    """
+        Runs the grover algorithm on the SAT instance of the given problem instance
+        and returns the warmstart statevector
+
+        :param instance: The instance to get the warmstart statevector for
+    """
+    sat_problem = instance.get_sat_instance()
+    n_features = instance.get_num_features()
+
+    # convert sat_problem to use integers for variables instead of boolean_var
+    variables = instance.get_boolean_variables()
+    converted_sat_problem = []
+    for clause in sat_problem:
+        converted_clause = []
+        for literal in clause:
+            converted_clause.append((variables.index(literal[0]), literal[1]))
+        converted_sat_problem.append(converted_clause)
+
+    # get the warmstart statevector using the grover algorithm
+    main_qc, qc_oracle = create_ksat_grover(converted_sat_problem, 1)
+
+    transpiled_grover_circuit = transpile(main_qc, StatevectorSimulator())
+    results = StatevectorSimulator().run(transpiled_grover_circuit, shots=1000).result()
+    counts = results.get_counts()
+    return calc_statevector_from(counts, n_features)
+
+
+def run_instances_and_save_results(instances: list[ProblemInstance], layers: int, strategy: str, results_path: str,
                                    skip_quso: bool = False, skip_puso: bool = False,
                                    save_individual_results: bool = False) -> None:
     """
@@ -152,17 +203,26 @@ def run_instances_and_save_results(instances: list[ProblemInstance], layers: int
         :param instances: The instances to run the algorithm for
         :param layers: The number of layers to use for the algorithm
         :param strategy: The strategy to use for the algorithm
+        :param results_path: The path to save the results to
         :param skip_quso: Whether to skip running the algorithm for the quso hamiltonian
         :param skip_puso: Whether to skip running the algorithm for the puso hamiltonian
         :param save_individual_results: Whether to save the results for each instance individually
     """
     results = pd.DataFrame()
     for index, instance in enumerate(instances):
-        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso)])
+        print(f"Running instance {index}")
+        warmstart_statevector = None
+        if use_warmstart:
+            warmstart_statevector = get_warmstart_statevector_from_grover(instance)
+            skip_quso = True  # warmstart does not account for additional ancilla qubits in quso formulation
+
+        df = pd.DataFrame([run_instance(instance, layers, strategy, skip_quso=skip_quso, skip_puso=skip_puso,
+                                        warmstart_statevector=warmstart_statevector)])
+
         if save_individual_results:
-            df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\feature_model_{index}.csv")
+            df.to_csv(results_path + f"feature_model_{index}.csv")
         results = pd.concat([results, df], ignore_index=True)
-    results.to_csv(f"benchmarks\\qaoa-feature-models\\results\\all_results.csv")
+    results.to_csv(results_path + "all_results.csv")
     return
 
 
@@ -364,38 +424,41 @@ def process_results(df: pd.DataFrame) -> pd.DataFrame:
     return processed_dataframe
 
 
-min_feature_cost = 10
-max_feature_cost = 100
-alpha_sat = None
-layers = 40
-strategy = 'avg'
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--first", help="start instance", type=int)
 parser.add_argument("--last", help="end instance", type=int)
-parser.add_argument("--skip_quso", help="skip quso", action='store_true')
-parser.add_argument("--skip_puso", help="skip puso", action='store_true')
+parser.add_argument("--skip-quso", help="skip quso", action='store_true')
+parser.add_argument("--skip-puso", help="skip puso", action='store_true')
 parser.add_argument("--save-individual-results", help="save individual results", action='store_true')
 parser.add_argument("-f", "--file", help="file to read results from", type=str)
+parser.add_argument("--linux", help="Use linux file paths", action='store_true')
 
 args = parser.parse_args()
 
+if args.linux:
+    base_path = "benchmarks/qaoa-feature-models/"
+    results_path = "results/"
+else:
+    base_path = "benchmarks\\qaoa-feature-models\\"
+    results_path = "results\\"
+
 if not args.file:
     # create results folder if it doesn't exist
-    Path("benchmarks\\qaoa-feature-models\\results").mkdir(parents=True, exist_ok=True)
+    Path(base_path + results_path).mkdir(parents=True, exist_ok=True)
 
     # get problem instances from dimacs files
     np.random.seed(42)
-    instances = [get_problem_instance_from_dimacs(f"benchmarks\\qaoa-feature-models\\feature_model_{i}.dimacs",
-                                                  min_feature_cost, max_feature_cost, alpha_sat) for i in
+    instances = [get_problem_instance_from_dimacs(base_path + f"feature_model_{i}.dimacs", min_feature_cost,
+                                                  max_feature_cost, alpha_sat) for i in
                  range(args.first, args.last + 1)]
 
     # run the algorithm for the instances
     run_instances_and_save_results(instances, layers, strategy, skip_quso=args.skip_quso, skip_puso=args.skip_puso,
-                                   save_individual_results=args.save_individual_results)
+                                   save_individual_results=args.save_individual_results,
+                                   results_path=base_path+results_path)
 
 else:
     df = pd.read_csv(args.file)
     df = df.drop(columns=['Unnamed: 0'])
     processed_df = process_results(df)
-    processed_df.to_csv(f"benchmarks\\qaoa-feature-models\\results\\processed_results.csv")
+    processed_df.to_csv(base_path + results_path + "processed_results.csv")

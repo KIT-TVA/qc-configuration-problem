@@ -13,13 +13,15 @@ from configproblem.util.hamiltonian_math import compute_config_energy
 from configproblem.qaoa.qaoa_application import get_expectation_statevector
 
 
-def plot_beta_gamma_cost_landscape(problem_circuit: Callable, hamiltonians: list[dict], strategies: list[str],
-                                   nqubits: int, step_size: float, plot_titles: bool = True, file_path: str = None):
+def plot_beta_gamma_cost_landscape(problem_circuit: Callable, mixer_circuit: Callable, hamiltonians: list[dict],
+                                   strategies: list[str], nqubits: int, step_size: float, plot_titles: bool = True,
+                                   file_path: str = None):
     """
         Plots the cost landscape for different values of beta and gamma
         for a given list of hamiltonians and list of strategies.
 
         :param problem_circuit: The function for creating the corresponding problem quantum circuit
+        :param mixer_circuit: The function for creating the corresponding mixer quantum circuit
         :param hamiltonians: list of hamiltonians to plot
         :param strategies: list of strategies to plot
         :param nqubits: number of qubits
@@ -61,8 +63,8 @@ def plot_beta_gamma_cost_landscape(problem_circuit: Callable, hamiltonians: list
 
         for i_index, i in enumerate(x_axis):
             for j_index, j in enumerate(y_axis):
-                expectation_function = get_expectation_statevector(problem_circuit, hamiltonian, nqubits, 1,
-                                                                   strategy=strategy)
+                expectation_function = get_expectation_statevector(problem_circuit, mixer_circuit, hamiltonian, nqubits,
+                                                                   1, strategy=strategy)
                 value = expectation_function([i, j])
                 expectation[i_index][j_index] = value
 
