@@ -7,8 +7,8 @@ from qiskit.result import Counts
 from qiskit_aer import StatevectorSimulator
 from qubovert.utils import DictArithmetic
 
-from configproblem.fragments.quantum_states import superposition_circuit
-from configproblem.util.hamiltonian_math import compute_hamiltonian_energy, compute_hamiltonian_energy_from_statevector
+from fragments.quantum_states import superposition_circuit
+from util.hamiltonian_math import compute_hamiltonian_energy, compute_hamiltonian_energy_from_statevector
 
 
 def qaoa_circuit(problem_circuit: Callable, mixer_circuit: Callable, hamiltonian: DictArithmetic, nqubits: int,

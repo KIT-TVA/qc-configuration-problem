@@ -9,8 +9,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from qiskit.result import Counts
 from qubovert.utils import DictArithmetic
 from scipy.stats import gaussian_kde
-from configproblem.util.hamiltonian_math import compute_config_energy
-from configproblem.qaoa.qaoa_application import get_expectation_statevector
+from util.hamiltonian_math import compute_config_energy
+from qaoa.qaoa_application import get_expectation_statevector
 
 
 def plot_beta_gamma_cost_landscape(problem_circuit: Callable, mixer_circuit: Callable, hamiltonians: list[dict],

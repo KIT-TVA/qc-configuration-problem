@@ -2,8 +2,8 @@ import numpy as np
 from qubovert import boolean_var, PCBO
 from qubovert.utils import DictArithmetic
 
-from configproblem.util.dimacs_reader import DimacsReader
-from configproblem.util.model_transformation import convert_to_penalty
+from util.dimacs_reader import DimacsReader
+from util.model_transformation import convert_to_penalty
 
 
 def generate_problem_instance_set(n_instances: int, n_features: int, min_n_clauses: int, max_n_clauses: int,
