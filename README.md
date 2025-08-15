@@ -6,6 +6,8 @@
 
 # Addressing the Configuration Problem via Quantum Computing
 
+Repository containing data and code for Q-SE 2024 submission: Quantum Solution for Configuration Selection and Prioritization
+
 ## Installation
 
 Install [python](https://www.python.org/downloads/) 3.9. Ideally, you should use a virtual environment for this project.
@@ -79,3 +81,27 @@ Here is a list of tools that we used during our evaluation:
 - [FeatureIDE](https://github.com/FeatureIDE/FeatureIDE) for generating feature models.
 - [Qiskit](https://github.com/Qiskit) for creating and simulating quantum circuits.
 - [Qubovert](https://github.com/jtiosue/qubovert) for conversion from and to QUBO and PUBO models.
+
+## Citation
+
+When publishing articles or otherwise writing about this work, please cite the following:
+
+```bibtex
+@inproceedings{10.1145/3643667.3648221,
+author = {Ammermann, Joshua and Brenneisen, Fabian Jakob and Bittner, Tim and Schaefer, Ina},
+title = {Quantum Solution for Configuration Selection and Prioritization},
+year = {2024},
+isbn = {9798400705700},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3643667.3648221},
+doi = {10.1145/3643667.3648221},
+abstract = {The analyses of highly configurable systems, as applied in software or automotive domains, yield hard problems due to the exponentially increasing number of possible product configurations. Current research identified that such combinatorial optimization problems, e.g. configuration selection and prioritization, are ideal targets for expected exponential quantum speedups. However, empirical evidence about the applicability of quantum computing to these problems is still missing. In this paper, we investigate how the constraint satisfaction and optimization problems of configuration selection and prioritization can be addressed using quantum computing. We propose a method to transform the configuration selection and prioritization problems encoded in attributed feature models into a quantum mechanical formulation suitable for optimization problems. We provide a Python library to automatically perform this transformation and apply the Quantum Approximate Optimization Algorithm (QAOA), such that configuration selection and prioritization are solved with quantum computers. Our approach is evaluated regarding feasibility, solution quality, and scalability. We show that QAOA obtains good results regarding configuration selection, but for configuration prioritization, the approach needs further improvement.},
+booktitle = {Proceedings of the 5th ACM/IEEE International Workshop on Quantum Software Engineering},
+pages = {21–28},
+numpages = {8},
+keywords = {configuration selection, configuration prioritization, QAOA},
+location = {Lisbon, Portugal},
+series = {Q-SE 2024}
+}
+```
